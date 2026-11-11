@@ -22,6 +22,7 @@ layout indicator, clock with a calendar flyout and the “show desktop” strip.
 - **Show desktop** strip at the right edge, **Task View** button opens Mission Control.
 - **Stays still when switching desktops**, like the Dock (uses a private macOS API; can be
   turned off in settings).
+- **Hides in full screen** — full-screen video and apps, like in Windows.
 - **Hides the Dock** the same way uBar does (autohide with a very long delay) and restores it on quit.
 - English and Russian, following the system language.
 
@@ -89,7 +90,7 @@ Only the Swift toolchain is needed (Xcode Command Line Tools), no Xcode project.
 ```sh
 swift build                                   # debug build
 ./scripts/bundle.sh                           # build/WTaskbar.app
-VERSION=0.8 ./scripts/make-dmg.sh             # build/wtaskbar-0.8.dmg
+VERSION=0.9 ./scripts/make-dmg.sh             # build/wtaskbar-0.9.dmg
 .build/debug/WTaskbar -snapshot reference     # re-render the screenshots above (add -theme xp|vista)
 ```
 

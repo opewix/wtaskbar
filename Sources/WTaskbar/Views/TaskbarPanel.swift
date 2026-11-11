@@ -9,6 +9,7 @@ final class TaskbarPanel: NSPanel {
     private var revealed = true
     private var leftAt: Date?
     private var autoHideTimer: Timer?
+    private var hiddenForFullScreen = false
 
     init(screen: NSScreen) {
         targetScreen = screen
@@ -34,6 +35,31 @@ final class TaskbarPanel: NSPanel {
         bar.frame = blur.bounds
 
         NotificationCenter.default.addObserver(self, selector: #selector(applySettings), name: Settings.changed, object: nil)
+        let workspace = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.activeSpaceDidChangeNotification, NSWorkspace.didActivateApplicationNotification] {
+            workspace.addObserver(self, selector: #selector(spaceChanged), name: name, object: nil)
+        }
+    }
+
+    /// В полноэкранном режиме панели не видно, как в Windows. Закреплённая на всех столах панель
+    /// живёт вне рабочих столов, и macOS сама её не спрячет — прячем по типу текущего стола.
+    /// Через прозрачность, а не снятием с экрана: снятое окно может выпасть из своего пространства.
+    @objc private func spaceChanged() {
+        updateFullScreen()
+        // Тип стола обновляется к концу анимации перехода.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.updateFullScreen() }
+    }
+
+    private func updateFullScreen() {
+        let hidden = SpacePin.isFullScreen(targetScreen)
+        guard hidden != hiddenForFullScreen else { return }
+        hiddenForFullScreen = hidden
+        if hidden { Flyouts.closeAll() }
+        ignoresMouseEvents = hidden
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.15
+            animator().alphaValue = hidden ? 0 : 1
+        }
     }
 
     override var canBecomeKey: Bool { false }
