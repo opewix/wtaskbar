@@ -78,7 +78,23 @@ enum WindowList {
         AXUIElementPerformAction(button, kAXPressAction as CFString)
     }
 
-    private static func frame(of element: AXUIElement) -> NSRect {
+    static func isStandard(_ window: AXUIElement) -> Bool {
+        let subrole: String? = value(window, kAXSubroleAttribute)
+        return subrole == kAXStandardWindowSubrole as String
+    }
+
+    /// Полноэкранное окно живёт на своём столе — его размер не трогаем.
+    static func isFullScreen(_ window: AXUIElement) -> Bool {
+        value(window, "AXFullScreen") ?? false
+    }
+
+    static func setSize(_ window: AXUIElement, _ size: NSSize) {
+        var cgSize = CGSize(width: size.width, height: size.height)
+        guard let value = AXValueCreate(.cgSize, &cgSize) else { return }
+        AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, value)
+    }
+
+    static func frame(of element: AXUIElement) -> NSRect {
         var origin = CGPoint.zero
         var size = CGSize.zero
         var raw: CFTypeRef?

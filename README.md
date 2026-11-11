@@ -41,6 +41,8 @@ Windows XP (blue Luna, green Start button, two-column Start menu with “All Pro
 Right-click the taskbar → **Taskbar settings…**, modeled after the Windows 10 page:
 
 - theme and scale (70–200 % in 10 % steps, remembered per theme — XP and Vista are smaller by design);
+- keep maximized windows above the taskbar (needs Accessibility: macOS doesn't know about the
+  taskbar, so WTaskbar trims windows whose bottom edge lands under it);
 - automatically hide the taskbar, small taskbar buttons;
 - combine taskbar buttons: *always, hide labels* / *when taskbar is full* / *never* — without
   combining, every window gets its own labeled button; labeled button width;
@@ -74,7 +76,7 @@ Requires macOS 13 Ventura or later.
 ## Permissions
 
 - **Accessibility** (optional) — for per-window buttons, the window list, raising a specific
-  window, the stacked look and per-display buttons. Taskbar settings → **Allow…**.
+  window, the stacked look, per-display buttons and keeping maximized windows above the taskbar. Taskbar settings → **Allow…**.
   If WTaskbar is switched on in the list but access still isn't granted, the permission belongs to
   an older build: click **Ask again** in Taskbar settings. Builds from 0.7 on keep the permission
   across updates (they are signed with a requirement on the bundle identifier, not the build hash).
@@ -87,7 +89,7 @@ Only the Swift toolchain is needed (Xcode Command Line Tools), no Xcode project.
 ```sh
 swift build                                   # debug build
 ./scripts/bundle.sh                           # build/WTaskbar.app
-VERSION=0.7 ./scripts/make-dmg.sh             # build/wtaskbar-0.7.dmg
+VERSION=0.8 ./scripts/make-dmg.sh             # build/wtaskbar-0.8.dmg
 .build/debug/WTaskbar -snapshot reference     # re-render the screenshots above (add -theme xp|vista)
 ```
 

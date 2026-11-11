@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 swift build -c release
 APP="build/WTaskbar.app"
-VERSION="${VERSION:-0.7}"
+VERSION="${VERSION:-0.8}"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/ru.lproj" "$APP/Contents/Resources/en.lproj"
 cp .build/release/WTaskbar "$APP/Contents/MacOS/WTaskbar"

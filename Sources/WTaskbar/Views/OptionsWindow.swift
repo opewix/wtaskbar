@@ -89,6 +89,8 @@ final class OptionsWindow: NSObject, NSWindowDelegate {
             "In XP and Vista running apps always have labels and pinned ones are shown as Quick Launch icons. There was no search, Task View or date under the clock.")))
 
         stack.addArrangedSubview(header(L.t("Панель задач", "Taskbar")))
+        stack.addArrangedSubview(checkbox(L.t("Развёрнутые окна не заходят под панель задач", "Keep maximized windows above the taskbar"),
+                                          Settings.fitMaximized) { Settings.fitMaximized = $0 })
         stack.addArrangedSubview(checkbox(L.t("Автоматически скрывать панель задач", "Automatically hide the taskbar"),
                                           Settings.autoHide) { Settings.autoHide = $0 })
         stack.addArrangedSubview(modern(checkbox(L.t("Использовать маленькие кнопки панели задач", "Use small taskbar buttons"),

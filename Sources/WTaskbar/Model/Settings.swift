@@ -59,6 +59,12 @@ enum Settings {
         set { store(newValue, "autoHide") }
     }
 
+    /// Развёрнутые окна не заходят под панель (нужен «Универсальный доступ»).
+    static var fitMaximized: Bool {
+        get { bool("fitMaximized", default: true) }
+        set { store(newValue, "fitMaximized") }
+    }
+
     static var smallButtons: Bool {
         get { bool("smallButtons", default: false) }
         set { store(newValue, "smallButtons") }

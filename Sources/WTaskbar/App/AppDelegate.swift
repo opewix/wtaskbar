@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         TaskbarModel.shared.start()
+        WindowFitter.shared.start()
         AppCatalog.shared.refresh()
         Flyouts.trackMenus()
         rebuildBars()
