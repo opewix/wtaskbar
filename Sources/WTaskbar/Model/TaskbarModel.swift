@@ -212,7 +212,8 @@ final class TaskbarModel {
         var signature = ""
         for app in runningTaskApps() {
             let pid = app.processIdentifier
-            let list = WindowList.windows(of: app)
+            // Не ответила — оставляем прежние окна, а не показываем кнопку без них.
+            let list = WindowList.windows(of: app, previous: windows[pid] ?? []) ?? windows[pid] ?? []
             // Новые окна — в конец, закрытые убираем.
             let ids = Set(list.map(\.id))
             var order = (windowOrder[pid] ?? []).filter(ids.contains)

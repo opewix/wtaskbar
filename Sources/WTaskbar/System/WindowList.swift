@@ -41,18 +41,27 @@ enum WindowList {
         requestAccess()
     }
 
-    static func windows(of app: NSRunningApplication) -> [Window] {
+    /// nil — программа не ответила (занята дольше таймаута или ещё не готова). Это не «окон нет»:
+    /// вызывающий оставляет прежний список, иначе кнопки на секунду теряют заголовок окна.
+    /// Заголовок, который не удалось прочитать, берётся из `previous` — того же окна на прошлом опросе.
+    static func windows(of app: NSRunningApplication, previous: [Window] = []) -> [Window]? {
         let appElement = AXUIElementCreateApplication(app.processIdentifier)
         AXUIElementSetMessagingTimeout(appElement, 0.25)
-        guard let list: [AXUIElement] = value(appElement, kAXWindowsAttribute) else { return [] }
+        var raw: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &raw) == .success else {
+            return nil
+        }
+        let list = raw as? [AXUIElement] ?? []
         let focusedWindow: AXUIElement? = value(appElement, kAXFocusedWindowAttribute)
         return list.compactMap { element in
             // Обычные окна документов; палитры, всплывашки и прочее — мимо.
             let subrole: String? = value(element, kAXSubroleAttribute)
             guard subrole == kAXStandardWindowSubrole as String else { return nil }
+            let id = Int(CFHash(element))
+            let title: String? = value(element, kAXTitleAttribute)
             return Window(element: element,
-                          id: Int(CFHash(element)),
-                          title: value(element, kAXTitleAttribute) ?? "",
+                          id: id,
+                          title: title ?? previous.first { $0.id == id }?.title ?? "",
                           minimized: value(element, kAXMinimizedAttribute) ?? false,
                           focused: focusedWindow.map { CFEqual($0, element) } ?? false,
                           frame: frame(of: element))

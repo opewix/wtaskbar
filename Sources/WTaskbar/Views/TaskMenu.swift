@@ -8,7 +8,7 @@ enum TaskMenu {
 
         if let app = item.app {
             if WindowList.isTrusted {
-                let windows = WindowList.windows(of: app)
+                let windows = WindowList.windows(of: app) ?? TaskbarModel.shared.windows(of: item)
                 for window in windows {
                     var title = window.title.isEmpty ? item.name : window.title
                     if window.minimized { title += L.t("  (свёрнуто)", "  (minimized)") }
