@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Snapshot.run(into: directory)
             return
         }
+        ArrowCursor.enableInBackground()
         TaskbarModel.shared.start()
         WindowFitter.shared.start()
         AppCatalog.shared.refresh()

@@ -58,7 +58,10 @@ class HoverButton: NSView {
             dragHandler?(.ended, event.locationInWindow.x)
             return
         }
-        if bounds.contains(convert(event.locationInWindow, from: nil)) { onClick?() }
+        if bounds.contains(convert(event.locationInWindow, from: nil)) {
+            onClick?()
+            ArrowCursor.reassert(over: window)
+        }
     }
 
     override func rightMouseDown(with event: NSEvent) {

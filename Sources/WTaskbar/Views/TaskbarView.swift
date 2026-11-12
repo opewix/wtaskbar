@@ -45,9 +45,14 @@ final class TaskbarView: NSView {
         center.addObserver(self, selector: #selector(reload), name: Settings.changed, object: nil)
         center.addObserver(self, selector: #selector(flyoutsChanged), name: Flyouts.changed, object: nil)
         reload()
+        // Стрелка над всей панелью, даже когда активна другая программа: см. ArrowCursor.
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect], owner: self))
     }
 
     required init?(coder: NSCoder) { fatalError() }
+
+    override func mouseEntered(with event: NSEvent) { ArrowCursor.set(over: window) }
+    override func mouseMoved(with event: NSEvent) { ArrowCursor.set(over: window) }
 
     /// Окно панели — в экранных точках, раскладка — в логических: масштаб задают границы вида.
     override func setFrameSize(_ newSize: NSSize) {
