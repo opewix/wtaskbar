@@ -55,30 +55,16 @@ enum WindowList {
         let focusedWindow: AXUIElement? = value(appElement, kAXFocusedWindowAttribute)
         return list.compactMap { element in
             // Обычные окна документов; палитры, всплывашки и прочее — мимо.
-            let subrole: String? = value(element, kAXSubroleAttribute)
+            guard isStandard(element) else { return nil }
             let id = Int(CFHash(element))
-            let minimized: Bool = value(element, kAXMinimizedAttribute) ?? false
-            // Свёрнутое окно, которое уже было на панели, не теряем, даже если подроль не прочиталась.
-            let wasListed = minimized && previous.contains { $0.id == id }
-            guard subrole == kAXStandardWindowSubrole as String || (subrole == nil && wasListed) else { return nil }
-            let read: String? = value(element, kAXTitleAttribute)
-            let known = previous.first { $0.id == id }?.title
+            let title: String? = value(element, kAXTitleAttribute)
             return Window(element: element,
                           id: id,
-                          title: title(read, known: known, minimized: minimized, appName: app.localizedName),
-                          minimized: minimized,
+                          title: title ?? previous.first { $0.id == id }?.title ?? "",
+                          minimized: value(element, kAXMinimizedAttribute) ?? false,
                           focused: focusedWindow.map { CFEqual($0, element) } ?? false,
                           frame: frame(of: element))
         }
-    }
-
-    /// Свёрнутое окно может отдавать заголовок пустым или именем программы — тогда кнопка
-    /// вместо «Загрузки» показывала «WExplorer». Свёрнутое окно заголовок не меняет,
-    /// поэтому держим тот, что был у него развёрнутым.
-    static func title(_ read: String?, known: String?, minimized: Bool, appName: String?) -> String {
-        guard let read else { return known ?? "" }
-        if minimized, let known, !known.isEmpty, read.isEmpty || read == appName { return known }
-        return read
     }
 
     static func focus(_ window: Window, of app: NSRunningApplication) {
@@ -100,9 +86,15 @@ enum WindowList {
         AXUIElementPerformAction(button, kAXPressAction as CFString)
     }
 
+    /// Обычное окно документа. Бывает, AppKit отдаёт окно программы, которая не впереди, подролью «диалог»
+    /// (так у WExplorer: свернул окно — программа ушла назад — кнопка окна пропадала с панели).
+    /// Настоящий диалог не сворачивается, поэтому «диалог» с кнопкой «Свернуть» — тоже окно.
     static func isStandard(_ window: AXUIElement) -> Bool {
         let subrole: String? = value(window, kAXSubroleAttribute)
-        return subrole == kAXStandardWindowSubrole as String
+        if subrole == kAXStandardWindowSubrole as String { return true }
+        guard subrole == kAXDialogSubrole as String else { return false }
+        let minimize: AXUIElement? = value(window, kAXMinimizeButtonAttribute)
+        return minimize != nil
     }
 
     /// Полноэкранное окно живёт на своём столе — его размер не трогаем.
