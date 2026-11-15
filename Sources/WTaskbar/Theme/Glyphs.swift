@@ -35,6 +35,48 @@ enum Glyphs {
         handle.stroke()
     }
 
+    /// Динамик контуром и волны по громкости: ни одной у тишины, до трёх у громкого звука.
+    /// Без звука — крестик вместо волн. Рисунок симметричен по вертикали, перевёрнутость вида не важна.
+    static func speaker(in rect: NSRect, color: NSColor, level: Float, muted: Bool, size: CGFloat = 16) {
+        let u = size / 16
+        let left = rect.midX - 8 * u
+        let mid = rect.midY
+        color.setStroke()
+        let body = NSBezierPath()
+        body.move(to: NSPoint(x: left + 0.5 * u, y: mid - 2.5 * u))
+        body.line(to: NSPoint(x: left + 3.5 * u, y: mid - 2.5 * u))
+        body.line(to: NSPoint(x: left + 7.5 * u, y: mid - 6 * u))
+        body.line(to: NSPoint(x: left + 7.5 * u, y: mid + 6 * u))
+        body.line(to: NSPoint(x: left + 3.5 * u, y: mid + 2.5 * u))
+        body.line(to: NSPoint(x: left + 0.5 * u, y: mid + 2.5 * u))
+        body.close()
+        body.lineWidth = max(1, u)
+        body.lineJoinStyle = .round
+        body.stroke()
+
+        let center = NSPoint(x: left + 7.5 * u, y: mid)
+        if muted {
+            let cross = NSBezierPath()
+            let c = NSPoint(x: left + 12.5 * u, y: mid)
+            let d = 2.5 * u
+            cross.move(to: NSPoint(x: c.x - d, y: c.y - d))
+            cross.line(to: NSPoint(x: c.x + d, y: c.y + d))
+            cross.move(to: NSPoint(x: c.x - d, y: c.y + d))
+            cross.line(to: NSPoint(x: c.x + d, y: c.y - d))
+            cross.lineWidth = max(1, u)
+            cross.stroke()
+            return
+        }
+        let waves = level <= 0 ? 0 : level < 0.34 ? 1 : level < 0.67 ? 2 : 3
+        for wave in 0..<waves {
+            let arc = NSBezierPath()
+            arc.appendArc(withCenter: center, radius: (2.5 + CGFloat(wave) * 2.5) * u, startAngle: -50, endAngle: 50)
+            arc.lineWidth = max(1, u)
+            arc.lineCapStyle = .round
+            arc.stroke()
+        }
+    }
+
     /// «Представление задач»: окно в центре и края соседних по бокам.
     static func taskView(in rect: NSRect, color: NSColor) {
         color.setStroke()

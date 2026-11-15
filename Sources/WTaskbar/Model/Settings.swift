@@ -106,6 +106,11 @@ enum Settings {
         set { store(newValue, "showLanguage") }
     }
 
+    static var showVolume: Bool {
+        get { bool("showVolume", default: true) }
+        set { store(newValue, "showVolume") }
+    }
+
     static var showDate: Bool {
         get { bool("showDate", default: true) }
         set { store(newValue, "showDate") }

@@ -49,6 +49,8 @@ protocol Skin {
 
 extension Skin {
     var languageWidth: CGFloat { 30 }
+    /// Значок в области уведомлений (громкость): в Windows 10 шире, в XP и Vista плотнее.
+    var trayIconWidth: CGFloat { isModern ? 32 : 22 }
 
     /// Подпись кнопки: в сгруппированной кнопке XP и Vista — число окон перед названием.
     func caption(_ look: ButtonLook) -> String {

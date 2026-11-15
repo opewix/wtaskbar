@@ -104,7 +104,7 @@ final class TaskbarPanel: NSPanel {
         let screen = targetScreen.frame
         let zone = revealed ? Theme.barScreenHeight : Theme.hiddenBarSliver + 1
         let inside = NSMouseInRect(mouse, screen, false) && mouse.y <= screen.minY + zone
-        let busy = StartMenu.shared.isShown || CalendarFlyout.shared.isShown || Flyouts.menuOpen
+        let busy = Flyouts.anyShown || Flyouts.menuOpen
 
         if inside || busy {
             leftAt = nil

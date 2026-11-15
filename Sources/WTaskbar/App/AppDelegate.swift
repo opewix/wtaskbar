@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         WindowFitter.shared.start()
         AppCatalog.shared.refresh()
         Flyouts.trackMenus()
+        Audio.startWatching()
         rebuildBars()
         NotificationCenter.default.addObserver(
             self, selector: #selector(rebuildBars),

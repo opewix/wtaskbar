@@ -8,6 +8,7 @@ final class StartButton: HoverButton {
         toolTip = L.t("Пуск", "Start")
         onClick = { [weak self] in
             CalendarFlyout.shared.close()
+            VolumeFlyout.shared.close()
             StartMenu.shared.toggle(on: self?.window?.screen)
         }
     }
@@ -26,6 +27,7 @@ final class SearchBoxButton: HoverButton {
         closesFlyouts = false
         onClick = { [weak self] in
             CalendarFlyout.shared.close()
+            VolumeFlyout.shared.close()
             StartMenu.shared.show(on: self?.window?.screen)
         }
     }
@@ -132,6 +134,44 @@ final class LanguageButton: HoverButton {
     }
 }
 
+/// Динамик в области уведомлений: щелчок — регулятор громкости, колёсико — громче и тише,
+/// правый щелчок — устройства вывода и параметры звука.
+final class VolumeButton: HoverButton {
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        closesFlyouts = false
+        onClick = { [weak self] in
+            guard let self, let window = self.window else { return }
+            StartMenu.shared.close()
+            CalendarFlyout.shared.close()
+            let anchor = window.convertToScreen(self.convert(self.bounds, to: nil)).midX
+            VolumeFlyout.shared.toggle(on: window.screen, anchorX: anchor)
+        }
+        menuProvider = { VolumeView.trayMenu() }
+        NotificationCenter.default.addObserver(self, selector: #selector(refresh), name: Audio.changed, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(refresh), name: Flyouts.changed, object: nil)
+        refresh()
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    @objc private func refresh() {
+        let name = Audio.current?.name ?? L.t("Динамики", "Speakers")
+        toolTip = Audio.isMuted ? "\(name): \(L.t("без звука", "muted"))" : "\(name): \(Audio.percent)%"
+        needsDisplay = true
+    }
+
+    override func scrollWheel(with event: NSEvent) {
+        VolumeView.nudge(by: event)
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let skin = Theme.skin
+        skin.drawTrayButton(bounds, hovered: hovered, pressed: pressed, active: VolumeFlyout.shared.isShown)
+        Glyphs.speaker(in: bounds, color: skin.trayText, level: Audio.volume, muted: Audio.isMuted)
+    }
+}
+
 /// Часы: в Windows 10 — время и дата в две строки, в XP и Vista — только время. Щелчок — календарь.
 final class ClockButton: HoverButton {
     private let timeFormatter = DateFormatter()
@@ -145,6 +185,7 @@ final class ClockButton: HoverButton {
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.tick() }
         onClick = { [weak self] in
             StartMenu.shared.close()
+            VolumeFlyout.shared.close()
             CalendarFlyout.shared.toggle(on: self?.window?.screen)
         }
         NotificationCenter.default.addObserver(self, selector: #selector(configure), name: Settings.changed, object: nil)

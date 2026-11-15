@@ -122,6 +122,8 @@ final class OptionsWindow: NSObject, NSWindowDelegate {
                                                  Settings.showTaskView) { Settings.showTaskView = $0 }))
         stack.addArrangedSubview(checkbox(L.t("Показывать индикатор раскладки клавиатуры", "Show keyboard layout indicator"),
                                           Settings.showLanguage) { Settings.showLanguage = $0 })
+        stack.addArrangedSubview(checkbox(L.t("Показывать регулятор громкости", "Show the volume control"),
+                                          Settings.showVolume) { Settings.showVolume = $0 })
         stack.addArrangedSubview(modern(checkbox(L.t("Показывать дату под часами", "Show the date under the clock"),
                                                  Settings.showDate) { Settings.showDate = $0 }))
         stack.addArrangedSubview(checkbox(L.t("Показывать секунды", "Show seconds"),

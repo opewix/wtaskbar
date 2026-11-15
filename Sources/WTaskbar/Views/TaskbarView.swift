@@ -1,7 +1,7 @@
 import AppKit
 
 /// Раскладка панели слева направо: «Пуск», поиск, «Представление задач», программы —
-/// и справа область уведомлений: раскладка, часы, «Свернуть все окна».
+/// и справа область уведомлений: громкость, раскладка, часы, «Свернуть все окна».
 final class TaskbarView: NSView {
     private let screen: NSScreen
     private let startButton = StartButton()
@@ -9,6 +9,7 @@ final class TaskbarView: NSView {
     private let searchIcon = GlyphButton(glyph: Glyphs.search, tooltip: L.t("Поиск", "Search"))
     private let taskViewButton = GlyphButton(glyph: Glyphs.taskView, tooltip: L.t("Представление задач", "Task View"))
     private let languageButton = LanguageButton()
+    private let volumeButton = VolumeButton()
     private let clockButton = ClockButton()
     private let desktopButton = ShowDesktopButton()
     private var taskButtons: [String: TaskButton] = [:]
@@ -30,13 +31,14 @@ final class TaskbarView: NSView {
     init(screen: NSScreen) {
         self.screen = screen
         super.init(frame: .zero)
-        for view in [startButton, searchBox, searchIcon, taskViewButton, languageButton, clockButton, desktopButton] as [NSView] {
+        for view in [startButton, searchBox, searchIcon, taskViewButton, volumeButton, languageButton, clockButton, desktopButton] as [NSView] {
             addSubview(view)
         }
         taskViewButton.onClick = { Launcher.open(Launcher.missionControl) }
         searchIcon.closesFlyouts = false
         searchIcon.onClick = { [weak self] in
             CalendarFlyout.shared.close()
+            VolumeFlyout.shared.close()
             StartMenu.shared.show(on: self?.window?.screen)
         }
 
@@ -124,6 +126,7 @@ final class TaskbarView: NSView {
         searchIcon.isHidden = !skin.isModern || !(Settings.search == .icon || (Settings.search == .box && small))
         taskViewButton.isHidden = !skin.isModern || !Settings.showTaskView
         languageButton.isHidden = !Settings.showLanguage
+        volumeButton.isHidden = !Settings.showVolume
         desktopButton.isHidden = !Settings.showDesktopButton
         subviews.forEach { $0.needsDisplay = true }
         needsDisplay = true
@@ -196,6 +199,7 @@ final class TaskbarView: NSView {
         if Settings.showDesktopButton { right -= 6 + 4 }
         right -= clockButton.preferredWidth
         if Settings.showLanguage { right -= Theme.skin.languageWidth }
+        if Settings.showVolume { right -= Theme.skin.trayIconWidth }
         return right - 8
     }
 
@@ -208,7 +212,7 @@ final class TaskbarView: NSView {
             x += width
         }
 
-        // Справа налево: полоска «Свернуть все», часы, раскладка.
+        // Справа налево: полоска «Свернуть все», часы, раскладка, громкость.
         var right = bounds.width
         if Settings.showDesktopButton {
             desktopButton.frame = NSRect(x: right - 6, y: 0, width: 6, height: h)
@@ -220,6 +224,11 @@ final class TaskbarView: NSView {
         let languageWidth = Theme.skin.languageWidth
         if Settings.showLanguage {
             languageButton.frame = NSRect(x: right - languageWidth, y: 0, width: languageWidth, height: h)
+            right -= languageWidth
+        }
+        if Settings.showVolume {
+            let width = Theme.skin.trayIconWidth
+            volumeButton.frame = NSRect(x: right - width, y: 0, width: width, height: h)
         }
 
         place(startButton, Theme.skin.startWidth)
@@ -339,6 +348,18 @@ final class TaskbarView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         Theme.skin.drawBar(bounds, trayFrom: trayLeft + 2)
+    }
+
+    // MARK: Щелчок по пустому месту
+
+    /// WTaskbar — фоновая программа, её окно никогда не активно: без этого первый щелчок
+    /// по пустому месту AppKit не отдаёт в `mouseDown` (кнопкам то же разрешено в `HoverButton`).
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    /// Закрывает «Пуск», календарь и громкость. Глобальный монитор щелчков их не видит —
+    /// щелчок в своей же программе, — а панель не становится ключевой, так что окно не теряет фокус.
+    override func mouseDown(with event: NSEvent) {
+        Flyouts.closeAll()
     }
 
     // MARK: Меню панели (правый щелчок по пустому месту)

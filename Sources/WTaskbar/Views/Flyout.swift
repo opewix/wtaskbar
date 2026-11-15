@@ -20,6 +20,11 @@ enum Flyouts {
     static func closeAll() {
         StartMenu.shared.close()
         CalendarFlyout.shared.close()
+        VolumeFlyout.shared.close()
+    }
+
+    static var anyShown: Bool {
+        StartMenu.shared.isShown || CalendarFlyout.shared.isShown || VolumeFlyout.shared.isShown
     }
 }
 
@@ -72,13 +77,17 @@ class Flyout {
         panel.onEscape = { [weak self] in self?.close() }
     }
 
-    /// Ставит панель над панелью задач экрана `screen`: к левому краю или к правому.
-    func show(on screen: NSScreen?, alignRight: Bool) {
+    /// Ставит панель над панелью задач экрана `screen`: к левому краю или к правому,
+    /// а с `centerX` — серединой над этой точкой экрана, не заходя за его края.
+    func show(on screen: NSScreen?, alignRight: Bool, centerX: CGFloat? = nil) {
         guard let screen = screen ?? NSScreen.main else { return }
         let scale = Theme.scale
         var size = NSSize(width: (logicalSize.width * scale).rounded(), height: (logicalSize.height * scale).rounded())
         size.height = min(size.height, screen.frame.height - Theme.barScreenHeight - 40)
-        let x = alignRight ? screen.frame.maxX - size.width : screen.frame.minX
+        var x = alignRight ? screen.frame.maxX - size.width : screen.frame.minX
+        if let centerX {
+            x = min(max((centerX - size.width / 2).rounded(), screen.frame.minX), screen.frame.maxX - size.width)
+        }
         panel.setFrame(NSRect(x: x, y: screen.frame.minY + Theme.barScreenHeight, width: size.width, height: size.height), display: true)
         // Содержимое раскладывается в логических точках, масштаб даёт разница рамки и границ.
         if let content, let background = panel.contentView {

@@ -18,7 +18,7 @@ layout indicator, clock with a calendar flyout and the “show desktop” strip.
 - **Jump list (right-click):** the app's windows, pin / unpin, show in Finder, hide, close.
 - **Start menu** (click or ⌃Esc): alphabetical list of installed apps, type to search, Enter to
   launch, pinned tiles, Documents / Pictures / Settings, lock, sign out, sleep, restart, shut down.
-- **Notification area:** keyboard layout (ENG / РУС, click to switch), clock and date, calendar flyout.
+- **Notification area:** volume control (click for the slider, scroll over the speaker to change volume, right-click to pick the output device), keyboard layout (ENG / РУС, click to switch), clock and date, calendar flyout.
 - **Show desktop** strip at the right edge, **Task View** button opens Mission Control.
 - **Stays still when switching desktops**, like the Dock (uses a private macOS API; can be
   turned off in settings).

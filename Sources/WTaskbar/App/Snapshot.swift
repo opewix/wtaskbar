@@ -1,6 +1,6 @@
 import AppKit
 
-/// `WTaskbar -snapshot <папка>`: рисует панель, «Пуск» и календарь в PNG и выходит.
+/// `WTaskbar -snapshot <папка>`: рисует панель, «Пуск», календарь и регулятор громкости в PNG и выходит.
 /// Для README и проверки вида без разрешения на запись экрана. Настройки можно подменить
 /// аргументами, не трогая сохранённые: `-snapshot out -combine never -smallButtons YES`.
 enum Snapshot {
@@ -24,6 +24,7 @@ enum Snapshot {
             start.reset()
             save(start, backdrop: backdrop, to: "\(directory)/start.png")
             save(CalendarView(frame: NSRect(x: 0, y: 0, width: 360, height: 430)), backdrop: backdrop, to: "\(directory)/calendar.png")
+            save(VolumeView(frame: NSRect(origin: .zero, size: VolumeView.size(Settings.theme))), backdrop: backdrop, to: "\(directory)/volume.png")
             let options = OptionsWindow.shared.snapshotView()
             save(options, backdrop: .windowBackgroundColor, to: "\(directory)/options.png")
             exit(0)
