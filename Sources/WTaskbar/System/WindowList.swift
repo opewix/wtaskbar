@@ -56,16 +56,29 @@ enum WindowList {
         return list.compactMap { element in
             // Обычные окна документов; палитры, всплывашки и прочее — мимо.
             let subrole: String? = value(element, kAXSubroleAttribute)
-            guard subrole == kAXStandardWindowSubrole as String else { return nil }
             let id = Int(CFHash(element))
-            let title: String? = value(element, kAXTitleAttribute)
+            let minimized: Bool = value(element, kAXMinimizedAttribute) ?? false
+            // Свёрнутое окно, которое уже было на панели, не теряем, даже если подроль не прочиталась.
+            let wasListed = minimized && previous.contains { $0.id == id }
+            guard subrole == kAXStandardWindowSubrole as String || (subrole == nil && wasListed) else { return nil }
+            let read: String? = value(element, kAXTitleAttribute)
+            let known = previous.first { $0.id == id }?.title
             return Window(element: element,
                           id: id,
-                          title: title ?? previous.first { $0.id == id }?.title ?? "",
-                          minimized: value(element, kAXMinimizedAttribute) ?? false,
+                          title: title(read, known: known, minimized: minimized, appName: app.localizedName),
+                          minimized: minimized,
                           focused: focusedWindow.map { CFEqual($0, element) } ?? false,
                           frame: frame(of: element))
         }
+    }
+
+    /// Свёрнутое окно может отдавать заголовок пустым или именем программы — тогда кнопка
+    /// вместо «Загрузки» показывала «WExplorer». Свёрнутое окно заголовок не меняет,
+    /// поэтому держим тот, что был у него развёрнутым.
+    static func title(_ read: String?, known: String?, minimized: Bool, appName: String?) -> String {
+        guard let read else { return known ?? "" }
+        if minimized, let known, !known.isEmpty, read.isEmpty || read == appName { return known }
+        return read
     }
 
     static func focus(_ window: Window, of app: NSRunningApplication) {
