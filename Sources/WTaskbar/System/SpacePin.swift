@@ -69,11 +69,13 @@ enum SpacePin {
             ?? displays.first { ($0["Display Identifier"] as? String) == "Main" }
     }
 
-    /// Столы дисплея по порядку, как в Mission Control (вместе с полноэкранными), и открытый сейчас.
-    static func order(of screen: NSScreen) -> (spaces: [UInt64], current: UInt64)? {
+    /// Столы дисплея по порядку, как в Mission Control (вместе с полноэкранными), открытый сейчас
+    /// и отдельно обычные рабочие столы — «Рабочий стол 1, 2…».
+    static func order(of screen: NSScreen) -> (spaces: [UInt64], current: UInt64, desktops: [UInt64])? {
         guard let display = display(of: screen),
               let current = (display["Current Space"] as? [String: Any]).flatMap(spaceID) else { return nil }
-        return ((display["Spaces"] as? [[String: Any]] ?? []).compactMap(spaceID), current)
+        let list = display["Spaces"] as? [[String: Any]] ?? []
+        return (list.compactMap(spaceID), current, list.filter { ($0["type"] as? Int) != 4 }.compactMap(spaceID))
     }
 
     /// Столы каждого дисплея: открытый сейчас и все его рабочие столы; плюс все полноэкранные.
@@ -146,15 +148,29 @@ enum Desktops {
     /// Свайп на дисплее под курсором ушёл к соседнему столу: +1 — следующий, −1 — предыдущий.
     /// false — соседа нет (край) или столы не узнать.
     static func predict(_ direction: Int) -> Bool {
-        let mouse = NSEvent.mouseLocation
-        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) }) ?? NSScreen.main,
-              let order = SpacePin.order(of: screen) else { return false }
+        guard let order = orderUnderCursor() else { return false }
         // Второй свайп до конца первой анимации идёт от стола, куда уже едем.
         var from = order.current
         if let predicted, order.spaces.contains(predicted.target) { from = predicted.target }
         guard let index = order.spaces.firstIndex(of: from), order.spaces.indices.contains(index + direction) else { return false }
         predicted = (Set(order.spaces), order.spaces[index + direction], Date())
         return true
+    }
+
+    /// Клавишами выбран рабочий стол по номеру (с нуля) на дисплее под курсором.
+    /// false — такого стола нет или он уже открыт.
+    static func predict(desktop index: Int) -> Bool {
+        guard let order = orderUnderCursor(), order.desktops.indices.contains(index) else { return false }
+        let target = order.desktops[index]
+        // Уже едем туда или уже там.
+        guard target != (predicted?.target ?? order.current) else { return false }
+        predicted = (Set(order.spaces), target, Date())
+        return true
+    }
+
+    private static func orderUnderCursor() -> (spaces: [UInt64], current: UInt64, desktops: [UInt64])? {
+        let mouse = NSEvent.mouseLocation
+        return (NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main).flatMap(SpacePin.order)
     }
 
     /// Упреждение не подтвердилось за время анимации с запасом — стол остался прежним.

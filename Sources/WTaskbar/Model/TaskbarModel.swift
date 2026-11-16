@@ -179,6 +179,16 @@ final class TaskbarModel {
     /// анимации. Не подтвердит macOS смену стола — вернём прежние.
     func desktopSwiped(_ direction: Int) {
         guard Settings.currentDesktopOnly, Desktops.predict(direction) else { return }
+        showPredictedDesktop()
+    }
+
+    /// Клавишами выбран рабочий стол по номеру (с нуля).
+    func desktopChosen(_ index: Int) {
+        guard Settings.currentDesktopOnly, Desktops.predict(desktop: index) else { return }
+        showPredictedDesktop()
+    }
+
+    private func showPredictedDesktop() {
         refreshWindows()
         let wait: TimeInterval = 2
         DispatchQueue.main.asyncAfter(deadline: .now() + wait + 0.05) { [weak self] in
