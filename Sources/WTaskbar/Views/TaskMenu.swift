@@ -6,13 +6,13 @@ enum TaskMenu {
     static func make(_ item: TaskItem) -> NSMenu {
         let menu = NSMenu.themed()
 
-        if let app = item.app {
+        if !item.apps.isEmpty {
             if WindowList.isTrusted {
-                let windows = (WindowList.windows(of: app) ?? TaskbarModel.shared.allWindows(of: item)).filter(\.isShown)
+                let windows = shownWindows(item)
                 for window in windows {
                     var title = window.title.isEmpty ? item.name : window.title
                     if window.minimized { title += L.t("  (свёрнуто)", "  (minimized)") }
-                    menu.addItem(.action(title) { WindowList.focus(window, of: app) })
+                    menu.addItem(.action(title) { Launcher.focus(window) })
                 }
                 if !windows.isEmpty { menu.addItem(.separator()) }
             } else {
@@ -22,7 +22,8 @@ enum TaskMenu {
         }
 
         if let url = item.url {
-            let open = NSMenuItem.action(item.name) { Launcher.open(url) }
+            // Как в Windows: пункт с именем программы открывает ещё одно её окно.
+            let open = NSMenuItem.action(item.name) { Launcher.openNew(url) }
             open.image = item.icon.resized(16)
             menu.addItem(open)
             let pinned = TaskbarModel.shared.isPinned(url)
@@ -34,18 +35,19 @@ enum TaskMenu {
         }
 
         if let app = item.app {
+            let apps = item.apps
             menu.addItem(.separator())
-            if app.isHidden {
-                menu.addItem(.action(L.t("Показать", "Show")) { app.unhide() })
+            if apps.allSatisfy(\.isHidden) {
+                menu.addItem(.action(L.t("Показать", "Show")) { apps.forEach { $0.unhide() } })
             } else {
-                menu.addItem(.action(L.t("Скрыть", "Hide")) { app.hide() })
+                menu.addItem(.action(L.t("Скрыть", "Hide")) { apps.forEach { $0.hide() } })
             }
             menu.addItem(.action(L.t("Завершить \(app.localizedName ?? "")", "Quit \(app.localizedName ?? "")")) {
-                app.terminate()
+                apps.forEach { $0.terminate() }
             })
             // Как в Windows: «Закрыть» — самый нижний пункт и закрывает окна — то, что на кнопке, а не программу.
             // Кнопка окна — только его; кнопка группы — все её окна этого рабочего стола.
-            let windows = item.window.map { [$0] } ?? closableWindows(of: app, item)
+            let windows = item.window.map { [$0] } ?? (WindowList.isTrusted ? shownWindows(item) : [])
             if !windows.isEmpty {
                 let title = windows.count == 1 ? L.t("Закрыть окно", "Close window")
                                                : L.t("Закрыть все окна", "Close all windows")
@@ -58,9 +60,12 @@ enum TaskMenu {
         return menu
     }
 
-    private static func closableWindows(of app: NSRunningApplication, _ item: TaskItem) -> [WindowList.Window] {
-        guard WindowList.isTrusted else { return [] }
-        return (WindowList.windows(of: app) ?? TaskbarModel.shared.allWindows(of: item)).filter(\.isShown)
+    /// Окна кнопки, спрошенные заново: меню не ждёт очередного опроса. Не ответила — по последнему опросу.
+    private static func shownWindows(_ item: TaskItem) -> [WindowList.Window] {
+        let model = TaskbarModel.shared
+        return item.apps.flatMap { app in
+            WindowList.windows(of: app) ?? model.allWindows(of: item).filter { $0.pid == app.processIdentifier }
+        }.filter(\.isShown)
     }
 }
 

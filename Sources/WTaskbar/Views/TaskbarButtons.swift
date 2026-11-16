@@ -76,7 +76,13 @@ final class TaskButton: HoverButton {
     override init(frame: NSRect) {
         super.init(frame: frame)
         onClick = { [weak self] in
-            if let item = self?.item { Launcher.click(item) }
+            guard let item = self?.item else { return }
+            // Shift и щелчок — ещё одно окно программы, как в Windows.
+            if NSApp.currentEvent?.modifierFlags.contains(.shift) == true, let url = item.url ?? item.app?.bundleURL {
+                Launcher.openNew(url)
+            } else {
+                Launcher.click(item)
+            }
         }
         menuProvider = { [weak self] in self?.item.map(TaskMenu.make) }
     }

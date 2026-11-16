@@ -6,6 +6,8 @@ import ApplicationServices
 enum WindowList {
     struct Window {
         let element: AXUIElement
+        /// Процесс окна: у кнопки программы окна могут быть от нескольких её экземпляров.
+        let pid: pid_t
         let id: Int
         let title: String
         let minimized: Bool
@@ -70,6 +72,7 @@ enum WindowList {
             let title: String? = value(element, kAXTitleAttribute)
             let number = windowNumber(element)
             return Window(element: element,
+                          pid: app.processIdentifier,
                           id: id,
                           title: title ?? previous.first { $0.id == id }?.title ?? "",
                           minimized: value(element, kAXMinimizedAttribute) ?? false,

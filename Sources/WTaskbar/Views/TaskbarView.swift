@@ -335,14 +335,17 @@ final class TaskbarView: NSView {
         let items = order.compactMap { taskButtons[$0]?.item }
         var apps: [String] = []
         var windows: [pid_t: [Int]] = [:]
+        var instances: [String: [pid_t]] = [:]
         for item in items {
             if !apps.contains(item.appID) { apps.append(item.appID) }
-            if let window = item.window, let pid = item.app?.processIdentifier {
-                windows[pid, default: []].append(window.id)
+            if let window = item.window {
+                windows[window.pid, default: []].append(window.id)
+                if instances[item.appID]?.contains(window.pid) != true { instances[item.appID, default: []].append(window.pid) }
             }
         }
         let model = TaskbarModel.shared
         model.reorder(apps)
+        for pids in instances.values { model.reorderInstances(pids) }
         for (pid, ids) in windows { model.reorderWindows(of: pid, ids) }
     }
 

@@ -7,7 +7,11 @@ struct TaskItem {
     /// Программа в порядке кнопок: путь к ней или, если пути нет, номер процесса.
     let appID: String
     let url: URL?
+    /// Экземпляр, от которого имя и значок; у кнопки окна — его процесс.
     let app: NSRunningApplication?
+    /// Все экземпляры программы с окнами здесь: как в Windows, они — одна кнопка (WExplorer
+    /// с отдельным процессом на окно, программа, запущенная дважды). Пусто — не запущена.
+    var apps: [NSRunningApplication] = []
     let pinned: Bool
     var window: WindowList.Window? = nil
 
@@ -25,7 +29,9 @@ struct TaskItem {
 
     /// Та же программа, но кнопка — на одно окно.
     func forWindow(_ window: WindowList.Window) -> TaskItem {
-        TaskItem(key: "win:\(app?.processIdentifier ?? 0):\(window.id)", appID: appID, url: url, app: app, pinned: pinned, window: window)
+        let owner = apps.first { $0.processIdentifier == window.pid } ?? app
+        return TaskItem(key: "win:\(window.pid):\(window.id)", appID: appID, url: url, app: owner,
+                        apps: owner.map { [$0] } ?? [], pinned: pinned, window: window)
     }
 }
 
@@ -74,22 +80,24 @@ final class TaskbarModel {
         refreshWindows()
     }
 
-    /// Кнопки по программам в порядке `slots`. Закреплённая и запущенная программа — одна кнопка.
+    /// Кнопки по программам в порядке `slots`. Закреплённая и запущенная программа — одна кнопка,
+    /// сколько бы её экземпляров ни работало.
     var items: [TaskItem] {
         let running = runningIDs()
         let pins = Dictionary(pinned.map { (Self.identity($0), $0) }, uniquingKeysWith: { first, _ in first })
         syncSlots(pinned: pinned.map(Self.identity), running: running.map(\.id))
-        let apps = Dictionary(running, uniquingKeysWith: { first, _ in first })
+        let instances = Dictionary(grouping: running, by: \.id).mapValues { $0.map(\.app) }
         return slots.compactMap { id in
-            let app = apps[id]
             let pin = pins[id]
-            guard app != nil || pin != nil else { return nil }
-            let item = TaskItem(key: "app:" + id, appID: id, url: pin ?? app?.bundleURL, app: app, pinned: pin != nil)
-            guard !hasWindowsHere(item) else { return item }
+            // Экземпляр, все окна которого на других столах, для этого стола не запущен.
+            let here = (instances[id] ?? []).filter(hasWindowsHere)
+            if let app = here.first {
+                return TaskItem(key: "app:" + id, appID: id, url: pin ?? app.bundleURL, app: app, apps: here, pinned: pin != nil)
+            }
             // Окон здесь нет: незакреплённой программы на панели нет, закреплённая — просто значком,
             // будто не запущена, как в Windows.
             guard let pin else { return nil }
-            return TaskItem(key: item.key, appID: id, url: pin, app: nil, pinned: true)
+            return TaskItem(key: "app:" + id, appID: id, url: pin, app: nil, pinned: true)
         }
     }
 
@@ -104,6 +112,15 @@ final class TaskbarModel {
         let order = Dictionary(slots.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
         pinned.sort { (order[Self.identity($0)] ?? .max) < (order[Self.identity($1)] ?? .max) }
         Settings.taskbarPins = pinned.map(\.path)
+        post()
+    }
+
+    /// Новый порядок экземпляров одной программы после перетаскивания кнопок их окон.
+    func reorderInstances(_ pids: [pid_t]) {
+        let moving = Set(pids)
+        let positions = launchOrder.indices.filter { moving.contains(launchOrder[$0]) }
+        guard pids.count > 1, positions.count == pids.count else { return }
+        for (position, pid) in zip(positions, pids) { launchOrder[position] = pid }
         post()
     }
 
@@ -125,16 +142,17 @@ final class TaskbarModel {
     }
 
     func allWindows(of item: TaskItem) -> [WindowList.Window] {
-        item.app.map { windows[$0.processIdentifier] ?? [] } ?? []
+        item.apps.flatMap { windows[$0.processIdentifier] ?? [] }
+    }
+
+    /// Окна программы на этом столе по последнему опросу.
+    func windowsHere(of app: NSRunningApplication) -> [WindowList.Window] {
+        (windows[app.processIdentifier] ?? []).filter(\.onCurrentDesktop)
     }
 
     /// Есть ли у программы окна здесь. Без окон на этом столе — их нет вовсе или они на других
     /// столах — программа, как в Windows, на панели не запущена: закреплённая — значком, иначе её нет.
     /// Пока окна не опрошены или нет доступа к ним — считаем, что есть.
-    func hasWindowsHere(_ item: TaskItem) -> Bool {
-        item.app.map(hasWindowsHere) ?? true
-    }
-
     func hasWindowsHere(_ app: NSRunningApplication) -> Bool {
         guard WindowList.isTrusted, let list = windows[app.processIdentifier] else { return true }
         if list.contains(where: \.isShown) { return true }
@@ -147,9 +165,14 @@ final class TaskbarModel {
 
     /// Кнопка программы активна, когда программа впереди; кнопка окна — когда ещё и окно в фокусе.
     func isActive(_ item: TaskItem) -> Bool {
-        guard let app = item.app, app.processIdentifier == frontmostPID, !app.isHidden else { return false }
+        guard frontApp(of: item) != nil else { return false }
         guard let window = item.window else { return true }
         return window.focused && !window.minimized
+    }
+
+    /// Экземпляр кнопки, который сейчас впереди.
+    func frontApp(of item: TaskItem) -> NSRunningApplication? {
+        item.apps.first { $0.processIdentifier == frontmostPID && !$0.isHidden }
     }
 
     /// После своих действий с окнами не ждём очередного опроса.
@@ -206,14 +229,10 @@ final class TaskbarModel {
         }
     }
 
-    /// Запущенные программы с их местом в порядке кнопок. Второй экземпляр той же программы
-    /// получает своё место по номеру процесса.
+    /// Запущенные программы с их местом в порядке кнопок. У экземпляров одной программы место общее.
     private func runningIDs() -> [(id: String, app: NSRunningApplication)] {
-        var seen = Set<String>()
-        return runningTaskApps().map { app in
-            var id = app.bundleURL.map(Self.identity) ?? "pid:\(app.processIdentifier)"
-            if !seen.insert(id).inserted { id = "pid:\(app.processIdentifier)" }
-            return (id, app)
+        runningTaskApps().map { app in
+            (app.bundleURL.map(Self.identity) ?? "pid:\(app.processIdentifier)", app)
         }
     }
 
