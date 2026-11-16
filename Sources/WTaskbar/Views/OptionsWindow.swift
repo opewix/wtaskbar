@@ -112,6 +112,9 @@ final class OptionsWindow: NSObject, NSWindowDelegate {
         let widthRow = row(L.t("Ширина кнопки с подписью:", "Labeled button width:"), slider, widthLabel)
         self.widthRow = widthRow
         stack.addArrangedSubview(widthRow)
+        stack.addArrangedSubview(checkbox(L.t("Шрифт как в Windows (Tahoma или Segoe UI, если установлен)",
+                                              "Windows-style font (Tahoma, or Segoe UI if installed)"),
+                                          Settings.windowsFont) { Settings.windowsFont = $0 })
         stack.addArrangedSubview(checkbox(L.t("Только окна текущего рабочего стола", "Only windows on the current desktop"),
                                           Settings.currentDesktopOnly) { Settings.currentDesktopOnly = $0 })
         stack.addArrangedSubview(row(L.t("Щелчок по активной программе:", "Clicking the active app:"),

@@ -149,11 +149,11 @@ struct Win10Skin: Skin {
     }
 
     private func drawLabeled(_ rect: NSRect, _ look: ButtonLook) {
+        // Как в Windows 10: между соседними кнопками зазор, фон — только у активной и под курсором,
+        // фоновая запущенная отмечена одной полоской, и та короче кнопки.
+        let box = NSRect(x: rect.minX, y: rect.minY, width: rect.width - 1, height: rect.height)
         if look.active || look.hovered || look.pressed {
-            fill(rect, hovered: look.hovered, pressed: look.pressed, active: look.active)
-        } else if look.running {
-            Theme.running.setFill()
-            rect.fill()
+            fill(box, hovered: look.hovered, pressed: look.pressed, active: look.active)
         }
         let pad: CGFloat = Settings.smallButtons ? 6 : 10
         drawIcon(look.icon, at: rect.minX + pad, in: rect)
@@ -163,8 +163,9 @@ struct Win10Skin: Skin {
                         color: Theme.text, shadow: false)
         }
         if look.running {
+            let inset: CGFloat = look.active || look.hovered ? 0 : 2
             Theme.indicator.setFill()
-            NSRect(x: rect.minX, y: rect.minY, width: rect.width, height: Theme.indicatorHeight).fill()
+            NSRect(x: box.minX + inset, y: box.minY, width: box.width - inset * 2, height: Theme.indicatorHeight).fill()
         }
     }
 
@@ -207,7 +208,7 @@ struct XPSkin: Skin {
     let startWidth: CGFloat = 100
     let labelsAlways = true
     let isModern = false
-    var font: NSFont { NSFont.systemFont(ofSize: 11) }
+    var font: NSFont { Fonts.ui(11) }
     var trayText: NSColor { .white }
     var languageWidth: CGFloat { 28 }
     var menuAppearance: NSAppearance? { NSAppearance(named: .aqua) }
@@ -263,7 +264,7 @@ struct XPSkin: Skin {
         shadow.set()
         Glyphs.start(in: glyphRect, color: .white, size: 14)
         let title = L.t("пуск", "start")
-        let font = NSFontManager.shared.convert(NSFont.boldSystemFont(ofSize: 17), toHaveTrait: .italicFontMask)
+        let font = Fonts.italic(Fonts.ui(17, weight: .bold))
         let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.white]
         let size = title.size(withAttributes: attrs)
         title.draw(at: NSPoint(x: glyphRect.maxX + 5, y: r.midY - size.height / 2), withAttributes: attrs)
@@ -313,7 +314,7 @@ struct XPSkin: Skin {
             tri.fill()
         }
         if textWidth > 10 {
-            let font = look.active ? NSFont.boldSystemFont(ofSize: 11) : self.font
+            let font = look.active ? Fonts.ui(11, weight: .bold) : self.font
             var attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.white]
             let shadow = NSShadow()
             shadow.shadowOffset = NSSize(width: 1, height: -1)
@@ -340,7 +341,7 @@ struct XPSkin: Skin {
         path.fill()
         NSColor(hex: 0x8FC1FF, alpha: 0.7).setStroke()
         path.stroke()
-        centeredText(source?.code ?? "", in: box, font: NSFont.boldSystemFont(ofSize: 9), color: .white)
+        centeredText(source?.code ?? "", in: box, font: Fonts.ui(9, weight: .bold), color: .white)
     }
 }
 
@@ -353,7 +354,7 @@ struct VistaSkin: Skin {
     let startWidth: CGFloat = 50
     let labelsAlways = true
     let isModern = false
-    var font: NSFont { NSFont.systemFont(ofSize: 11) }
+    var font: NSFont { Fonts.ui(11) }
     var trayText: NSColor { .white }
     var menuAppearance: NSAppearance? { Theme.darkAppearance }
     var calendar: CalendarPalette {

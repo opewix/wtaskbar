@@ -22,13 +22,13 @@ final class ClassicStartView: StartBaseView {
         allButton = AllProgramsRow(style: style)
         super.init(listStyle: style == .xp ? .xp : .vista)
 
-        searchField.font = NSFont.systemFont(ofSize: 12)
+        searchField.font = Fonts.ui(12)
         searchField.textColor = .black
         if style == .vista {
             searchField.placeholderAttributedString = NSAttributedString(
                 string: L.t("Начать поиск", "Start Search"),
                 attributes: [.foregroundColor: NSColor(hex: 0x7A7A7A),
-                             .font: NSFontManager.shared.convert(NSFont.systemFont(ofSize: 12), toHaveTrait: .italicFontMask)])
+                             .font: Fonts.italic(Fonts.ui(12))])
         } else {
             searchField.alphaValue = 0
         }
@@ -71,9 +71,9 @@ final class ClassicStartView: StartBaseView {
     private func makePlaces() -> [NSView] {
         let placeStyle: ListStyle = style == .xp
             ? ListStyle(text: NSColor(hex: 0x00136B), hoverFill: NSColor(hex: 0x316AC5), hoverText: .white, header: .black,
-                        font: .systemFont(ofSize: 12), rowHeight: 30, iconSize: 24)
+                        font: Fonts.ui(12), rowHeight: 30, iconSize: 24)
             : ListStyle(text: .white, hoverFill: NSColor(white: 1, alpha: 0.14), hoverBorder: NSColor(white: 1, alpha: 0.35),
-                        hoverText: .white, header: .white, font: .systemFont(ofSize: 12), rowHeight: 28, iconSize: 0, cornerRadius: 3)
+                        hoverText: .white, header: .white, font: Fonts.ui(12), rowHeight: 28, iconSize: 0, cornerRadius: 3)
         let home = URL(fileURLWithPath: NSHomeDirectory())
         func place(_ title: String, _ url: URL, bold: Bool = false) -> NSView {
             PlaceRow(title: title, url: url, bold: bold, style: placeStyle)
@@ -192,7 +192,7 @@ final class ClassicStartView: StartBaseView {
         // Вид перевёрнут: верх — меньшие y, поэтому градиент идёт «вниз» с углом 90.
         flippedGradient([(0x4C8EF4, 0), (0x2167E4, 0.12), (0x1A5ED8, 0.8), (0x1550C8, 1)], in: header)
         drawUserPicture(in: NSRect(x: 8, y: 8, width: 42, height: 42), frame: .white)
-        text(NSFullUserName(), at: NSPoint(x: 58, y: 19), font: .boldSystemFont(ofSize: 14), color: .white, shadow: true)
+        text(NSFullUserName(), at: NSPoint(x: 58, y: 19), font: Fonts.ui(14, weight: .bold), color: .white, shadow: true)
 
         let orange = NSGradient(colors: [NSColor(hex: 0xF0A242, alpha: 0), NSColor(hex: 0xF0A242), NSColor(hex: 0xF0A242, alpha: 0)])
         orange?.draw(in: NSRect(x: 0, y: 58, width: w, height: 2), angle: 0)
@@ -289,7 +289,7 @@ final class AllProgramsRow: HoverButton {
         if hovered { StyledRow.drawHighlight(bounds, style: listStyle, pressed: pressed) }
         let title = showingAll ? L.t("Назад", "Back") : L.t("Все программы", "All Programs")
         let color = hovered ? listStyle.hoverText : listStyle.text
-        let font = NSFont.boldSystemFont(ofSize: 12)
+        let font = Fonts.ui(12, weight: .bold)
         let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
         let size = title.size(withAttributes: attrs)
         let arrowSide: CGFloat = 14
@@ -357,7 +357,7 @@ final class PlaceRow: HoverButton {
             NSWorkspace.shared.icon(forFile: url.path).draw(in: NSRect(x: 6, y: (bounds.height - s) / 2, width: s, height: s))
             x = 6 + s + 8
         }
-        let font = bold ? NSFont.boldSystemFont(ofSize: style.font.pointSize) : style.font
+        let font = bold ? Fonts.ui(style.font.pointSize, weight: .bold) : style.font
         StyledRow.drawTitle(title, x: x, in: bounds, font: font, color: hovered ? style.hoverText : style.text)
     }
 }
@@ -409,7 +409,7 @@ final class FooterButton: HoverButton {
 
     var preferredWidth: CGFloat {
         guard let title else { return round ? 30 : 22 }
-        return 22 + 6 + ceil(title.size(withAttributes: [.font: NSFont.systemFont(ofSize: 11)]).width) + 6
+        return 22 + 6 + ceil(title.size(withAttributes: [.font: Fonts.ui(11)]).width) + 6
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -427,7 +427,7 @@ final class FooterButton: HoverButton {
                        from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
         }
         if let title {
-            let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.white]
+            let attrs: [NSAttributedString.Key: Any] = [.font: Fonts.ui(11), .foregroundColor: NSColor.white]
             let size = title.size(withAttributes: attrs)
             title.draw(at: NSPoint(x: box.maxX + 6, y: bounds.midY - size.height / 2), withAttributes: attrs)
             if hovered {

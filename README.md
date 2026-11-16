@@ -17,7 +17,8 @@ layout indicator, clock with a calendar flyout and the “show desktop” strip.
   apps that aren't running and for window buttons. The order of pinned apps is remembered.
 - **Jump list (right-click):** the app's windows, pin / unpin, show in Finder, hide, quit, close the window (or all of the group's windows).
 - **Virtual desktops:** only the current desktop's windows get buttons, as in Windows 10 (can be turned off). The buttons switch as soon as you swipe or press Control-Left / Control-Right, without waiting for the macOS animation.
-- **Shift-click** a button to open another window of that app; several running copies of one app share a single button.
+- **Shift-click** or **middle-click** a button to open another window of that app; several running copies of one app share a single button. A grouped button with several windows shows a list to pick from.
+- **Windows-style font:** Tahoma, which ships with macOS (Segoe UI is used instead if you have installed it yourself). Can be switched back to the macOS system font in Taskbar settings.
 - **Start menu** (click or ⌃Esc): alphabetical list of installed apps, type to search, Enter to
   launch, pinned tiles, Documents / Pictures / Settings, lock, sign out, sleep, restart, shut down.
 - **Notification area:** volume control (click for the slider, scroll over the speaker to change volume, right-click to pick the output device), keyboard layout (ENG / РУС, click to switch), clock and date, calendar flyout.

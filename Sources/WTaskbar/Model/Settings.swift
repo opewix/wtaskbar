@@ -122,6 +122,12 @@ enum Settings {
         set { store(newValue, "showSeconds") }
     }
 
+    /// Шрифт как в Windows (Tahoma, а установлен Segoe UI — он) вместо системного шрифта macOS.
+    static var windowsFont: Bool {
+        get { bool("windowsFont", default: true) }
+        set { store(newValue, "windowsFont") }
+    }
+
     static var showDesktopButton: Bool {
         get { bool("showDesktopButton", default: true) }
         set { store(newValue, "showDesktopButton") }

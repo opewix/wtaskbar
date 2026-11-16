@@ -39,7 +39,7 @@ final class SearchBoxButton: HoverButton {
         bounds.fill()
         Glyphs.search(in: NSRect(x: 8, y: 0, width: 24, height: bounds.height), color: NSColor(white: 0.1, alpha: 1))
         let placeholder = L.t("Введите здесь текст для поиска", "Type here to search")
-        let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: Theme.searchText]
+        let attrs: [NSAttributedString.Key: Any] = [.font: Fonts.ui(13), .foregroundColor: Theme.searchText]
         let size = placeholder.size(withAttributes: attrs)
         let rect = NSRect(x: 42, y: (bounds.height - size.height) / 2, width: bounds.width - 50, height: size.height)
         placeholder.draw(with: rect, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], attributes: attrs)
@@ -76,10 +76,13 @@ final class TaskButton: HoverButton {
     override init(frame: NSRect) {
         super.init(frame: frame)
         onClick = { [weak self] in
-            guard let item = self?.item else { return }
+            guard let self, let item = self.item else { return }
             // Shift и щелчок — ещё одно окно программы, как в Windows.
             if NSApp.currentEvent?.modifierFlags.contains(.shift) == true, let url = item.url ?? item.app?.bundleURL {
                 Launcher.openNew(url)
+            } else if item.window == nil, let menu = TaskMenu.windowList(item) {
+                // Сгруппированная кнопка с несколькими окнами: в Windows — выбор окна, а не одно из них наугад.
+                menu.popUp(positioning: nil, at: NSPoint(x: 0, y: self.bounds.height), in: self)
             } else {
                 Launcher.click(item)
             }
@@ -88,6 +91,14 @@ final class TaskButton: HoverButton {
     }
 
     required init?(coder: NSCoder) { fatalError() }
+
+    /// Щелчок колёсиком — тоже ещё одно окно программы, как в Windows.
+    override func otherMouseUp(with event: NSEvent) {
+        guard event.buttonNumber == 2, bounds.contains(convert(event.locationInWindow, from: nil)),
+              let url = item?.url ?? item?.app?.bundleURL else { return }
+        Flyouts.closeAll()
+        Launcher.openNew(url)
+    }
 
     func update(item: TaskItem, active: Bool, windows: Int) {
         self.item = item

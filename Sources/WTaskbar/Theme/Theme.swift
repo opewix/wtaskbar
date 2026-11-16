@@ -30,8 +30,6 @@ enum Theme {
     static let hover = NSColor(white: 1, alpha: 0.10)
     static let pressed = NSColor(white: 1, alpha: 0.05)
     static let active = NSColor(white: 1, alpha: 0.16)
-    /// Фон запущенной кнопки с подписью — в Windows она чуть светлее панели.
-    static let running = NSColor(white: 1, alpha: 0.05)
     static let activeHover = NSColor(white: 1, alpha: 0.22)
     static let text = NSColor(white: 1, alpha: 0.95)
     static let dimText = NSColor(white: 1, alpha: 0.55)
@@ -49,9 +47,59 @@ enum Theme {
     static var indicator: NSColor { accent.blended(withFraction: 0.45, of: .white) ?? accent }
     static var tile: NSColor { accent.blended(withFraction: 0.25, of: .black) ?? accent }
 
-    static let font = NSFont.systemFont(ofSize: 12)
-    static let menuFont = NSFont.systemFont(ofSize: 13)
+    static var font: NSFont { Fonts.ui(12) }
+    static var menuFont: NSFont { Fonts.ui(13) }
     static let darkAppearance = NSAppearance(named: .darkAqua)
+}
+
+/// Шрифт надписей панели, «Пуска» и всплывающих окон. Шрифтов Microsoft в программе нет: берём
+/// те, что уже стоят в системе. Tahoma — шрифт интерфейса Windows XP — входит в macOS; Segoe UI
+/// (Vista и Windows 10) используется, только если пользователь установил его сам.
+enum Fonts {
+    /// Какой шрифт сейчас в ходу — чтобы пересобрать то, что запомнило шрифт.
+    static var signature: String { "\(Settings.windowsFont)|\(family ?? "system")" }
+
+    private static var family: String? {
+        guard Settings.windowsFont else { return nil }
+        let wanted = Settings.theme == .xp ? ["Tahoma"] : ["Segoe UI", "Tahoma"]
+        return wanted.first { available.contains($0) }
+    }
+
+    private static let available: Set<String> = Set(["Segoe UI", "Tahoma"].filter {
+        NSFontManager.shared.font(withFamily: $0, traits: [], weight: 5, size: 12) != nil
+    })
+
+    private static var cache: [String: NSFont] = [:]
+
+    /// Шрифты спрашивают при каждой отрисовке — найденные запоминаем.
+    static func ui(_ size: CGFloat, weight: NSFont.Weight = .regular) -> NSFont {
+        let key = "\(family ?? "")|\(size)|\(weight.rawValue)"
+        if let font = cache[key] { return font }
+        let font = find(size, weight: weight)
+        cache[key] = font
+        return font
+    }
+
+    private static func find(_ size: CGFloat, weight: NSFont.Weight) -> NSFont {
+        let system = NSFont.systemFont(ofSize: size, weight: weight)
+        guard let family else { return system }
+        // У Tahoma светлого начертания нет, а крупные светлые цифры (часы над календарём) обычным
+        // начертанием выходят тяжёлыми — там остаётся системный шрифт.
+        if weight.rawValue < NSFont.Weight.regular.rawValue, family == "Tahoma" { return system }
+        let bold = weight.rawValue >= NSFont.Weight.semibold.rawValue
+        let light = weight.rawValue < NSFont.Weight.regular.rawValue
+        return NSFontManager.shared.font(withFamily: family, traits: bold ? .boldFontMask : [],
+                                         weight: bold ? 9 : light ? 3 : 5, size: size) ?? system
+    }
+
+    /// Курсив; у шрифта без курсивного начертания (Tahoma) — наклон.
+    static func italic(_ font: NSFont) -> NSFont {
+        let converted = NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask)
+        if NSFontManager.shared.traits(of: converted).contains(.italicFontMask) { return converted }
+        let size = font.pointSize
+        let skew = AffineTransform(m11: size, m12: 0, m21: size * 0.2, m22: size, tX: 0, tY: 0)
+        return NSFont(descriptor: font.fontDescriptor.withMatrix(skew), size: size) ?? font
+    }
 }
 
 extension NSImage {

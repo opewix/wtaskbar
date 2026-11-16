@@ -121,11 +121,11 @@ final class CalendarView: NSView {
     }
 
     private func text(_ string: String, at point: NSPoint, size: CGFloat, weight: NSFont.Weight = .regular, color: NSColor) {
-        string.draw(at: point, withAttributes: [.font: NSFont.systemFont(ofSize: size, weight: weight), .foregroundColor: color])
+        string.draw(at: point, withAttributes: [.font: Fonts.ui(size, weight: weight), .foregroundColor: color])
     }
 
     private func centered(_ string: String, in rect: NSRect, size: CGFloat, color: NSColor) {
-        let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: size), .foregroundColor: color]
+        let attrs: [NSAttributedString.Key: Any] = [.font: Fonts.ui(size), .foregroundColor: color]
         let s = string.size(withAttributes: attrs)
         string.draw(at: NSPoint(x: rect.midX - s.width / 2, y: rect.midY - s.height / 2), withAttributes: attrs)
     }

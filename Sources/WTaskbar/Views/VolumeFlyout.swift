@@ -169,7 +169,7 @@ final class VolumeView: NSView {
         let style = NSMutableParagraphStyle()
         style.alignment = centered ? .center : .left
         style.lineBreakMode = .byTruncatingTail
-        let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: size, weight: weight),
+        let attrs: [NSAttributedString.Key: Any] = [.font: Fonts.ui(size, weight: weight),
                                                     .foregroundColor: color, .paragraphStyle: style]
         string.draw(with: rect, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], attributes: attrs)
     }

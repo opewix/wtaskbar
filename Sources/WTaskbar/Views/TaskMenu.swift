@@ -60,6 +60,23 @@ enum TaskMenu {
         return menu
     }
 
+    /// Список окон сгруппированной кнопки для выбора щелчком. nil — окон здесь меньше двух.
+    static func windowList(_ item: TaskItem) -> NSMenu? {
+        guard WindowList.isTrusted, !item.apps.isEmpty else { return nil }
+        let windows = TaskbarModel.shared.windows(of: item)
+        guard windows.count > 1 else { return nil }
+        let menu = NSMenu.themed()
+        let icon = item.icon.resized(16)
+        for window in windows {
+            var title = window.title.isEmpty ? item.name : window.title
+            if window.minimized { title += L.t("  (свёрнуто)", "  (minimized)") }
+            let entry = NSMenuItem.action(title, checked: window.focused && TaskbarModel.shared.isActive(item)) { Launcher.focus(window) }
+            entry.image = icon
+            menu.addItem(entry)
+        }
+        return menu
+    }
+
     /// Окна кнопки, спрошенные заново: меню не ждёт очередного опроса. Не ответила — по последнему опросу.
     private static func shownWindows(_ item: TaskItem) -> [WindowList.Window] {
         let model = TaskbarModel.shared

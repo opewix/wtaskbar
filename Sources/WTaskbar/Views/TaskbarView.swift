@@ -390,6 +390,7 @@ final class TaskbarView: NSView {
             Settings.hideDock.toggle()
         })
         menu.addItem(.separator())
+        menu.addItem(.action(L.t("Показать рабочий стол", "Show the desktop")) { Launcher.toggleDesktop() })
         menu.addItem(.action(L.t("Мониторинг системы", "Activity Monitor")) { Launcher.open(Launcher.activityMonitor) })
         menu.addItem(.separator())
         menu.addItem(.action(L.t("Параметры панели задач…", "Taskbar settings…")) { OptionsWindow.shared.show() })

@@ -5,6 +5,7 @@ final class StartMenu: Flyout {
     static let shared = StartMenu()
     private var content: StartBaseView
     private var builtFor: ThemeKind
+    private var builtFont = Fonts.signature
 
     private init() {
         builtFor = Settings.theme
@@ -35,9 +36,10 @@ final class StartMenu: Flyout {
     }
 
     @objc private func settingsChanged() {
-        guard Settings.theme != builtFor else { return }
+        guard Settings.theme != builtFor || Fonts.signature != builtFont else { return }
         close()
         builtFor = Settings.theme
+        builtFont = Fonts.signature
         content = Self.makeContent(builtFor)
         setContent(content, size: Self.size(builtFor), cornerRadius: Self.cornerRadius(builtFor))
     }
@@ -206,11 +208,11 @@ final class Win10StartView: StartBaseView {
         super.init(listStyle: .win10)
         searchBox.wantsLayer = true
         searchBox.layer?.backgroundColor = Theme.flyoutField.cgColor
-        searchField.font = NSFont.systemFont(ofSize: 13)
+        searchField.font = Fonts.ui(13)
         searchField.textColor = Theme.text
         searchField.placeholderAttributedString = NSAttributedString(
             string: L.t("Поиск программ", "Search apps"),
-            attributes: [.foregroundColor: Theme.dimText, .font: NSFont.systemFont(ofSize: 13)])
+            attributes: [.foregroundColor: Theme.dimText, .font: Fonts.ui(13)])
         searchBox.addSubview(searchField)
         addSubview(searchBox)
 
@@ -305,13 +307,13 @@ struct ListStyle {
     var iconSize: CGFloat
     var cornerRadius: CGFloat = 0
 
-    static let win10 = ListStyle(text: Theme.text, hoverFill: Theme.hover, hoverText: Theme.text, header: Theme.text,
-                                 font: .systemFont(ofSize: 13), rowHeight: 36, iconSize: 26)
-    static let xp = ListStyle(text: .black, hoverFill: NSColor(hex: 0x316AC5), hoverText: .white, header: NSColor(hex: 0x6F6F6F),
-                              font: .systemFont(ofSize: 12), rowHeight: 34, iconSize: 24)
-    static let vista = ListStyle(text: NSColor(hex: 0x1E1E1E), hoverFill: NSColor(hex: 0xDCEBFC), hoverBorder: NSColor(hex: 0x7DA2CE),
+    static var win10: ListStyle { ListStyle(text: Theme.text, hoverFill: Theme.hover, hoverText: Theme.text, header: Theme.text,
+                                 font: Fonts.ui(13), rowHeight: 36, iconSize: 26) }
+    static var xp: ListStyle { ListStyle(text: .black, hoverFill: NSColor(hex: 0x316AC5), hoverText: .white, header: NSColor(hex: 0x6F6F6F),
+                              font: Fonts.ui(12), rowHeight: 34, iconSize: 24) }
+    static var vista: ListStyle { ListStyle(text: NSColor(hex: 0x1E1E1E), hoverFill: NSColor(hex: 0xDCEBFC), hoverBorder: NSColor(hex: 0x7DA2CE),
                                  hoverText: NSColor(hex: 0x1E1E1E), header: NSColor(hex: 0x6D6D6D),
-                                 font: .systemFont(ofSize: 12), rowHeight: 30, iconSize: 22, cornerRadius: 3)
+                                 font: Fonts.ui(12), rowHeight: 30, iconSize: 22, cornerRadius: 3) }
 }
 
 final class AppListView: NSView {
@@ -445,7 +447,7 @@ final class TilesView: NSView {
 
     override init(frame: NSRect) {
         super.init(frame: frame)
-        header.font = NSFont.systemFont(ofSize: 12)
+        header.font = Fonts.ui(12)
         header.textColor = Theme.text
         addSubview(header)
     }
@@ -503,7 +505,7 @@ final class TileButton: HoverButton {
         }
         let s: CGFloat = 44
         Icons.app(url).draw(in: NSRect(x: (bounds.width - s) / 2, y: (bounds.height - s) / 2 + 6, width: s, height: s))
-        let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: Theme.text]
+        let attrs: [NSAttributedString.Key: Any] = [.font: Fonts.ui(11), .foregroundColor: Theme.text]
         let name = AppEntry.name(of: url)
         let height = name.size(withAttributes: attrs).height
         name.draw(with: NSRect(x: 8, y: 6, width: bounds.width - 16, height: height),
