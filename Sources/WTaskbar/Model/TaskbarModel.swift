@@ -175,6 +175,18 @@ final class TaskbarModel {
         item.apps.first { $0.processIdentifier == frontmostPID && !$0.isHidden }
     }
 
+    /// Свайп между столами закончен (`DesktopSwipe`): кнопки стола назначения — сразу, не дожидаясь
+    /// анимации. Не подтвердит macOS смену стола — вернём прежние.
+    func desktopSwiped(_ direction: Int) {
+        guard Settings.currentDesktopOnly, Desktops.predict(direction) else { return }
+        refreshWindows()
+        let wait: TimeInterval = 2
+        DispatchQueue.main.asyncAfter(deadline: .now() + wait + 0.05) { [weak self] in
+            Desktops.update()
+            if Desktops.expirePrediction(after: wait) { self?.refreshWindows() }
+        }
+    }
+
     /// После своих действий с окнами не ждём очередного опроса.
     func refreshSoon() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in self?.refreshWindows() }
@@ -261,6 +273,7 @@ final class TaskbarModel {
 
     private func refreshWindows() {
         guard WindowList.isTrusted else { return }
+        DesktopSwipe.startIfNeeded()
         Desktops.update()
         let server = WindowList.serverWindows()
         var fresh: [pid_t: [WindowList.Window]] = [:]

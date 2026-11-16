@@ -13,6 +13,8 @@ enum DumpWindows {
         var out = ""
         out += "trusted=\(WindowList.isTrusted) spacesAPI=\(SpacePin.isAvailable) currentDesktopOnly=\(Settings.currentDesktopOnly)\n"
         Desktops.update()
+        DesktopSwipe.startIfNeeded()
+        out += "swipeTap=\(DesktopSwipe.mode)\n"
         out += "desktops=\(Desktops.current.sorted()) fullScreen=\(Desktops.fullScreen.sorted())\n"
         for app in NSWorkspace.shared.runningApplications where app.activationPolicy == .regular {
             for window in WindowList.windows(of: app) ?? [] {

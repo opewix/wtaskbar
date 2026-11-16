@@ -53,16 +53,27 @@ enum SpacePin {
     /// Открыт ли на дисплее полноэкранный стол (видео, программа во весь экран).
     /// Закреплённая панель видна и поверх него, поэтому прячется сама — как в Windows.
     static func isFullScreen(_ screen: NSScreen) -> Bool {
+        let current = display(of: screen)?["Current Space"] as? [String: Any]
+        // Тип 4 — полноэкранный стол, 0 — обычный.
+        return (current?["type"] as? Int) == 4
+    }
+
+    /// Запись дисплея в списке столов WindowServer.
+    private static func display(of screen: NSScreen) -> [String: Any]? {
         guard let api, let displays = api.copyDisplaySpaces(api.connection)?.takeRetainedValue() as? [[String: Any]],
               let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID,
               let uuid = CGDisplayCreateUUIDFromDisplayID(number)?.takeRetainedValue(),
-              let id = CFUUIDCreateString(nil, uuid) as String? else { return false }
+              let id = CFUUIDCreateString(nil, uuid) as String? else { return nil }
         // «Main» — когда у дисплеев общие рабочие столы («Мониторы с отдельными пространствами» выключено).
-        let display = displays.first { ($0["Display Identifier"] as? String) == id }
+        return displays.first { ($0["Display Identifier"] as? String) == id }
             ?? displays.first { ($0["Display Identifier"] as? String) == "Main" }
-        let current = display?["Current Space"] as? [String: Any]
-        // Тип 4 — полноэкранный стол, 0 — обычный.
-        return (current?["type"] as? Int) == 4
+    }
+
+    /// Столы дисплея по порядку, как в Mission Control (вместе с полноэкранными), и открытый сейчас.
+    static func order(of screen: NSScreen) -> (spaces: [UInt64], current: UInt64)? {
+        guard let display = display(of: screen),
+              let current = (display["Current Space"] as? [String: Any]).flatMap(spaceID) else { return nil }
+        return ((display["Spaces"] as? [[String: Any]] ?? []).compactMap(spaceID), current)
     }
 
     /// Столы каждого дисплея: открытый сейчас и все его рабочие столы; плюс все полноэкранные.
@@ -118,12 +129,41 @@ enum SpacePin {
 }
 
 /// Какие столы панель считает текущими. macOS меняет текущий стол только в конце анимации
-/// перехода (около секунды). Узнать стол назначения раньше пока не удалось — см. PLAN.md.
+/// перехода (около секунды), поэтому после свайпа панель сама считает текущим стол назначения
+/// (`predict`), пока macOS его не подтвердит.
 enum Desktops {
-    private(set) static var current = Set<UInt64>()
+    /// Текущие столы по macOS.
+    private(set) static var actual = Set<UInt64>()
     private(set) static var fullScreen = Set<UInt64>()
-    /// Текущие столы по macOS. Пока без упреждения то же, что `current`.
-    static var actual: Set<UInt64> { current }
+    /// Упреждение: на дисплее со столами `display` текущим считаем `target`.
+    private static var predicted: (display: Set<UInt64>, target: UInt64, at: Date)?
+
+    static var current: Set<UInt64> {
+        guard let predicted else { return actual }
+        return actual.subtracting(predicted.display).union([predicted.target])
+    }
+
+    /// Свайп на дисплее под курсором ушёл к соседнему столу: +1 — следующий, −1 — предыдущий.
+    /// false — соседа нет (край) или столы не узнать.
+    static func predict(_ direction: Int) -> Bool {
+        let mouse = NSEvent.mouseLocation
+        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) }) ?? NSScreen.main,
+              let order = SpacePin.order(of: screen) else { return false }
+        // Второй свайп до конца первой анимации идёт от стола, куда уже едем.
+        var from = order.current
+        if let predicted, order.spaces.contains(predicted.target) { from = predicted.target }
+        guard let index = order.spaces.firstIndex(of: from), order.spaces.indices.contains(index + direction) else { return false }
+        predicted = (Set(order.spaces), order.spaces[index + direction], Date())
+        return true
+    }
+
+    /// Упреждение не подтвердилось за время анимации с запасом — стол остался прежним.
+    /// true — упреждение снято.
+    static func expirePrediction(after seconds: TimeInterval) -> Bool {
+        guard let predicted, Date().timeIntervalSince(predicted.at) >= seconds else { return false }
+        self.predicted = nil
+        return true
+    }
 
     /// Окно на текущем столе. Стол не узнать или API нет — считаем, что здесь. Полноэкранные окна
     /// живут на своём столе — их, как развёрнутые, показываем везде.
@@ -136,8 +176,10 @@ enum Desktops {
     static func update() -> Bool {
         guard let layout = SpacePin.layout() else { return false }
         let fresh = Set(layout.displays.compactMap(\.current))
-        guard fresh != current || layout.fullScreen != fullScreen else { return false }
-        current = fresh
+        // macOS пришла на предсказанный стол — упреждение больше не нужно.
+        if let predicted, fresh.contains(predicted.target) { self.predicted = nil }
+        guard fresh != actual || layout.fullScreen != fullScreen else { return false }
+        actual = fresh
         fullScreen = layout.fullScreen
         return true
     }
