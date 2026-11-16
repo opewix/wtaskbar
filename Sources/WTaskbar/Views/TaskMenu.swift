@@ -8,7 +8,7 @@ enum TaskMenu {
 
         if let app = item.app {
             if WindowList.isTrusted {
-                let windows = WindowList.windows(of: app) ?? TaskbarModel.shared.windows(of: item)
+                let windows = (WindowList.windows(of: app) ?? TaskbarModel.shared.allWindows(of: item)).filter(\.isShown)
                 for window in windows {
                     var title = window.title.isEmpty ? item.name : window.title
                     if window.minimized { title += L.t("  (свёрнуто)", "  (minimized)") }
@@ -35,20 +35,32 @@ enum TaskMenu {
 
         if let app = item.app {
             menu.addItem(.separator())
-            if let window = item.window {
-                menu.addItem(.action(L.t("Закрыть окно", "Close window")) {
-                    WindowList.close(window)
-                    TaskbarModel.shared.refreshSoon()
-                })
-            }
             if app.isHidden {
                 menu.addItem(.action(L.t("Показать", "Show")) { app.unhide() })
             } else {
                 menu.addItem(.action(L.t("Скрыть", "Hide")) { app.hide() })
             }
-            menu.addItem(.action(L.t("Закрыть", "Close")) { app.terminate() })
+            menu.addItem(.action(L.t("Завершить \(app.localizedName ?? "")", "Quit \(app.localizedName ?? "")")) {
+                app.terminate()
+            })
+            // Как в Windows: «Закрыть» — самый нижний пункт и закрывает окна — то, что на кнопке, а не программу.
+            // Кнопка окна — только его; кнопка группы — все её окна этого рабочего стола.
+            let windows = item.window.map { [$0] } ?? closableWindows(of: app, item)
+            if !windows.isEmpty {
+                let title = windows.count == 1 ? L.t("Закрыть окно", "Close window")
+                                               : L.t("Закрыть все окна", "Close all windows")
+                menu.addItem(.action(title) {
+                    windows.forEach(WindowList.close)
+                    TaskbarModel.shared.refreshSoon()
+                })
+            }
         }
         return menu
+    }
+
+    private static func closableWindows(of app: NSRunningApplication, _ item: TaskItem) -> [WindowList.Window] {
+        guard WindowList.isTrusted else { return [] }
+        return (WindowList.windows(of: app) ?? TaskbarModel.shared.allWindows(of: item)).filter(\.isShown)
     }
 }
 

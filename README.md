@@ -15,7 +15,8 @@ layout indicator, clock with a calendar flyout and the “show desktop” strip.
   “stacked” look when an app has several windows.
 - **Drag to reorder:** hold a button and move it left or right, like in Windows; works for pinned
   apps that aren't running and for window buttons. The order of pinned apps is remembered.
-- **Jump list (right-click):** the app's windows, pin / unpin, show in Finder, hide, close.
+- **Jump list (right-click):** the app's windows, pin / unpin, show in Finder, hide, quit, close the window (or all of the group's windows).
+- **Virtual desktops:** only the current desktop's windows get buttons, as in Windows 10 (can be turned off).
 - **Start menu** (click or ⌃Esc): alphabetical list of installed apps, type to search, Enter to
   launch, pinned tiles, Documents / Pictures / Settings, lock, sign out, sleep, restart, shut down.
 - **Notification area:** volume control (click for the slider, scroll over the speaker to change volume, right-click to pick the output device), keyboard layout (ENG / РУС, click to switch), clock and date, calendar flyout.

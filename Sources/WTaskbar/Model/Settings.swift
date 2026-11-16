@@ -126,6 +126,12 @@ enum Settings {
         set { store(newValue, "showDesktopButton") }
     }
 
+    /// Кнопки только окон текущего рабочего стола, как в Windows 10 по умолчанию.
+    static var currentDesktopOnly: Bool {
+        get { bool("currentDesktopOnly", default: true) }
+        set { store(newValue, "currentDesktopOnly") }
+    }
+
     // MARK: Несколько дисплеев
 
     static var allDisplays: Bool {

@@ -13,10 +13,20 @@ enum WindowList {
         let focused: Bool
         /// В координатах AppKit (начало — левый нижний угол главного экрана).
         let frame: NSRect
+        /// Номер окна WindowServer; nil — не узнать.
+        let number: CGWindowID?
+        /// Столы окна; пусто — не узнать.
+        var desktops: [UInt64]
+
+        /// На текущем рабочем столе. Свёрнутые, полноэкранные и окна, чей стол не узнать, — везде.
+        var onCurrentDesktop: Bool { minimized || Desktops.contains(desktops) }
+
+        /// Видна ли кнопка окна: в Windows 10 по умолчанию — только окна текущего рабочего стола.
+        var isShown: Bool { onCurrentDesktop || !Settings.currentDesktopOnly }
 
         /// Для сравнения: изменилось ли что-то, что видно на панели.
         var signature: String {
-            "\(id)|\(title)|\(minimized)|\(focused)|\(Int(frame.midX)),\(Int(frame.midY))"
+            "\(id)|\(title)|\(minimized)|\(focused)|\(desktops)|\(Int(frame.midX)),\(Int(frame.midY))"
         }
 
         func isOn(_ screen: NSScreen) -> Bool {
@@ -58,13 +68,57 @@ enum WindowList {
             guard isStandard(element) else { return nil }
             let id = Int(CFHash(element))
             let title: String? = value(element, kAXTitleAttribute)
+            let number = windowNumber(element)
             return Window(element: element,
                           id: id,
                           title: title ?? previous.first { $0.id == id }?.title ?? "",
                           minimized: value(element, kAXMinimizedAttribute) ?? false,
                           focused: focusedWindow.map { CFEqual($0, element) } ?? false,
-                          frame: frame(of: element))
+                          frame: frame(of: element),
+                          number: number,
+                          desktops: number.map(SpacePin.desktops(ofWindow:)) ?? [])
         }
+    }
+
+    /// Окна WindowServer обычного уровня размером с окно документа — без служебных полосок и всплывашек.
+    static func isDocumentSized(_ info: [String: Any]) -> Bool {
+        guard (info[kCGWindowLayer as String] as? Int) == 0,
+              let bounds = (info[kCGWindowBounds as String] as? NSDictionary).flatMap({ CGRect(dictionaryRepresentation: $0) }) else {
+            return false
+        }
+        return bounds.width >= 150 && bounds.height >= 150
+    }
+
+    /// Окна WindowServer на всех столах: номер → столы, и столы окон каждой программы.
+    /// Accessibility окон других столов не отдаёт — для неё программа там выглядит как оставшаяся
+    /// без окон, — поэтому смотрим сюда. Мелочь (служебные полоски, всплывашки) не считаем.
+    static func serverWindows() -> (desktops: [CGWindowID: [UInt64]], apps: [pid_t: Set<UInt64>]) {
+        var desktops: [CGWindowID: [UInt64]] = [:]
+        var apps: [pid_t: Set<UInt64>] = [:]
+        for info in CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? [] {
+            guard isDocumentSized(info),
+                  let pid = info[kCGWindowOwnerPID as String] as? pid_t,
+                  let number = info[kCGWindowNumber as String] as? CGWindowID else { continue }
+            let spaces = SpacePin.desktops(ofWindow: number)
+            guard !spaces.isEmpty else { continue }
+            desktops[number] = spaces
+            apps[pid, default: []].formUnion(spaces)
+        }
+        return (desktops, apps)
+    }
+
+    private typealias GetWindow = @convention(c) (AXUIElement, UnsafeMutablePointer<CGWindowID>) -> AXError
+    /// Закрытая функция Accessibility: номер окна WindowServer по элементу окна.
+    private static let getWindow: GetWindow? = {
+        guard let lib = dlopen("/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices", RTLD_LAZY),
+              let symbol = dlsym(lib, "_AXUIElementGetWindow") else { return nil }
+        return unsafeBitCast(symbol, to: GetWindow.self)
+    }()
+
+    static func windowNumber(_ element: AXUIElement) -> CGWindowID? {
+        var number: CGWindowID = 0
+        guard let getWindow, getWindow(element, &number) == .success, number != 0 else { return nil }
+        return number
     }
 
     static func focus(_ window: Window, of app: NSRunningApplication) {
@@ -75,6 +129,42 @@ enum WindowList {
         AXUIElementPerformAction(window.element, kAXRaiseAction as CFString)
         app.unhide()
         app.activate(options: [.activateIgnoringOtherApps])
+    }
+
+    /// Нажимает в меню программы «Новое окно» (или пункт с ⌘N), не выводя её вперёд: окно
+    /// откроется на текущем столе. false — такого пункта нет или программа не ответила.
+    static func openNewWindow(of app: NSRunningApplication) -> Bool {
+        let appElement = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetMessagingTimeout(appElement, 0.5)
+        guard let bar: AXUIElement = value(appElement, kAXMenuBarAttribute) else { return false }
+        var byTitle: AXUIElement?
+        var byShortcut: AXUIElement?
+        for barItem in children(bar) {
+            for menu in children(barItem) {
+                for item in children(menu) where value(item, kAXEnabledAttribute) ?? false {
+                    let title = (value(item, kAXTitleAttribute) as String?) ?? ""
+                    if byTitle == nil, isNewWindow(title) { byTitle = item }
+                    let key: String? = value(item, kAXMenuItemCmdCharAttribute)
+                    let modifiers: Int? = value(item, kAXMenuItemCmdModifiersAttribute)
+                    if byShortcut == nil, key == "N", modifiers == 0 { byShortcut = item }
+                }
+            }
+            if byTitle != nil { break }
+        }
+        guard let item = byTitle ?? byShortcut else { return false }
+        return AXUIElementPerformAction(item, kAXPressAction as CFString) == .success
+    }
+
+    /// «New Window», «New Finder Window», «Новое окно» — но не приватное и не инкогнито.
+    private static func isNewWindow(_ title: String) -> Bool {
+        let lower = title.lowercased()
+        let new = (lower.contains("new") && lower.contains("window")) || (lower.contains("нов") && lower.contains("окно"))
+        let privateWindow = ["private", "incognito", "приват", "инкогнито"].contains { lower.contains($0) }
+        return new && !privateWindow
+    }
+
+    private static func children(_ element: AXUIElement) -> [AXUIElement] {
+        value(element, kAXChildrenAttribute) ?? []
     }
 
     static func minimize(_ window: Window) {

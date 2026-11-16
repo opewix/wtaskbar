@@ -9,6 +9,13 @@ enum Launcher {
     /// Запускает программу или, если она уже работает, делает то же, что щелчок по значку в Dock:
     /// выводит вперёд и разворачивает свёрнутое окно (или открывает новое, если окон нет).
     static func open(_ url: URL) {
+        // Запущена, но окон на этом столе нет — новое окно здесь, как в Windows, а не прыжок на чужой стол.
+        let instances = runningApps(at: url)
+        if let app = instances.first, !instances.contains(where: TaskbarModel.shared.hasWindowsHere),
+           WindowList.openNewWindow(of: app) {
+            focusNewWindow(at: url, attempts: 10)
+            return
+        }
         let config = NSWorkspace.OpenConfiguration()
         config.activates = true
         NSWorkspace.shared.openApplication(at: url, configuration: config)
@@ -44,6 +51,27 @@ enum Launcher {
             open(url)
         } else {
             app.activate(options: [.activateIgnoringOtherApps])
+        }
+    }
+
+    private static func runningApps(at url: URL) -> [NSRunningApplication] {
+        NSWorkspace.shared.runningApplications.filter { TaskbarModel.same($0.bundleURL, url) }
+    }
+
+    /// Выводит вперёд окно программы на этом столе, когда оно появится. Не саму программу: её главное
+    /// окно может быть на другом столе, и macOS перешла бы туда. Окно может открыть и другой экземпляр
+    /// (WExplorer с отдельной иконкой на окно), поэтому смотрим все. Accessibility отдаёт только окна
+    /// текущего стола — первое не свёрнутое и есть новое.
+    private static func focusNewWindow(at url: URL, attempts: Int) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            for app in runningApps(at: url) {
+                if let window = WindowList.windows(of: app)?.first(where: { $0.onCurrentDesktop && !$0.minimized }) {
+                    WindowList.focus(window, of: app)
+                    TaskbarModel.shared.refreshSoon()
+                    return
+                }
+            }
+            if attempts > 1 { focusNewWindow(at: url, attempts: attempts - 1) }
         }
     }
 

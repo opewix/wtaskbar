@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 swift build -c release
 APP="build/WTaskbar.app"
-VERSION="${VERSION:-0.16}"
+VERSION="${VERSION:-0.17}"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/ru.lproj" "$APP/Contents/Resources/en.lproj"
 cp .build/release/WTaskbar "$APP/Contents/MacOS/WTaskbar"
@@ -27,6 +27,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>$VERSION</string>
 <key>CFBundleVersion</key><string>1</string>
+<key>WTaskbarBuildDate</key><string>$(date '+%Y-%m-%d %H:%M')</string>
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>CFBundleDevelopmentRegion</key><string>en</string>
 <key>CFBundleLocalizations</key><array><string>en</string><string>ru</string></array>

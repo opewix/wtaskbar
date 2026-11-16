@@ -41,6 +41,8 @@ final class TaskbarModel {
     /// Окна запущенных программ; пусто без разрешения «Универсальный доступ».
     private(set) var windows: [pid_t: [WindowList.Window]] = [:]
     private var windowsSignature = ""
+    /// Столы окон каждой программы по WindowServer (см. `WindowList.serverWindows`).
+    private var appDesktops: [pid_t: Set<UInt64>] = [:]
     /// Порядок запуска: новые кнопки встают в конец в том порядке, в каком открывались программы.
     private var launchOrder: [pid_t] = []
     /// Порядок кнопок программ — закреплённых и запущенных вперемешку, его меняет перетаскивание.
@@ -62,6 +64,11 @@ final class TaskbarModel {
                      NSWorkspace.didUnhideApplicationNotification] {
             center.addObserver(self, selector: #selector(workspaceEvent(_:)), name: name, object: nil)
         }
+        // Сменился рабочий стол — кнопки окон другие, не ждём опроса.
+        center.addObserver(forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.refreshWindows()
+            self?.refreshSoon()
+        }
         // Окна открываются, закрываются и переименовываются без уведомлений — опрашиваем.
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.refreshWindows() }
         refreshWindows()
@@ -77,7 +84,12 @@ final class TaskbarModel {
             let app = apps[id]
             let pin = pins[id]
             guard app != nil || pin != nil else { return nil }
-            return TaskItem(key: "app:" + id, appID: id, url: pin ?? app?.bundleURL, app: app, pinned: pin != nil)
+            let item = TaskItem(key: "app:" + id, appID: id, url: pin ?? app?.bundleURL, app: app, pinned: pin != nil)
+            guard !hasWindowsHere(item) else { return item }
+            // Окон здесь нет: незакреплённой программы на панели нет, закреплённая — просто значком,
+            // будто не запущена, как в Windows.
+            guard let pin else { return nil }
+            return TaskItem(key: item.key, appID: id, url: pin, app: nil, pinned: true)
         }
     }
 
@@ -107,8 +119,30 @@ final class TaskbarModel {
         post()
     }
 
+    /// Окна программы, кнопки которых видны: без окон других рабочих столов.
     func windows(of item: TaskItem) -> [WindowList.Window] {
+        allWindows(of: item).filter(\.isShown)
+    }
+
+    func allWindows(of item: TaskItem) -> [WindowList.Window] {
         item.app.map { windows[$0.processIdentifier] ?? [] } ?? []
+    }
+
+    /// Есть ли у программы окна здесь. Без окон на этом столе — их нет вовсе или они на других
+    /// столах — программа, как в Windows, на панели не запущена: закреплённая — значком, иначе её нет.
+    /// Пока окна не опрошены или нет доступа к ним — считаем, что есть.
+    func hasWindowsHere(_ item: TaskItem) -> Bool {
+        item.app.map(hasWindowsHere) ?? true
+    }
+
+    func hasWindowsHere(_ app: NSRunningApplication) -> Bool {
+        guard WindowList.isTrusted, let list = windows[app.processIdentifier] else { return true }
+        if list.contains(where: \.isShown) { return true }
+        let desktops = appDesktops[app.processIdentifier] ?? []
+        // Окна других столов Accessibility не отдаёт: при показе всех столов программа с ними остаётся.
+        if !Settings.currentDesktopOnly { return !desktops.isEmpty }
+        // Окно на столе, куда только что перешли, а Accessibility его ещё не отдала.
+        return desktops.contains { Desktops.current.contains($0) }
     }
 
     /// Кнопка программы активна, когда программа впереди; кнопка окна — когда ещё и окно в фокусе.
@@ -208,12 +242,24 @@ final class TaskbarModel {
 
     private func refreshWindows() {
         guard WindowList.isTrusted else { return }
+        Desktops.update()
+        let server = WindowList.serverWindows()
         var fresh: [pid_t: [WindowList.Window]] = [:]
         var signature = ""
         for app in runningTaskApps() {
             let pid = app.processIdentifier
+            let previous = windows[pid] ?? []
             // Не ответила — оставляем прежние окна, а не показываем кнопку без них.
-            let list = WindowList.windows(of: app, previous: windows[pid] ?? []) ?? windows[pid] ?? []
+            var list = WindowList.windows(of: app, previous: previous) ?? previous
+            // Окна других столов Accessibility не отдаёт — помним их с прошлых раз, пока окно живо
+            // и стоит на другом столе: при переходе туда кнопки появятся сразу, без опроса.
+            let seen = Set(list.compactMap(\.number))
+            for var old in previous {
+                guard let number = old.number, !seen.contains(number), let spaces = server.desktops[number],
+                      !spaces.contains(where: Desktops.actual.contains) else { continue }
+                old.desktops = spaces
+                list.append(old)
+            }
             // Новые окна — в конец, закрытые убираем.
             let ids = Set(list.map(\.id))
             var order = (windowOrder[pid] ?? []).filter(ids.contains)
@@ -223,6 +269,11 @@ final class TaskbarModel {
             signature += "\(pid):" + (fresh[pid] ?? []).map(\.signature).joined(separator: ";") + "\n"
         }
         windows = fresh
+        appDesktops = server.apps
+        // Сменился только текущий стол — список окон с запомненными окнами других столов тот же,
+        // а кнопки уже другие.
+        signature += "current:\(Desktops.current.sorted()) fullScreen:\(Desktops.fullScreen.sorted())\n"
+        signature += "desktops:" + appDesktops.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value.sorted())" }.joined(separator: ",")
         if signature != windowsSignature {
             windowsSignature = signature
             post()

@@ -112,6 +112,8 @@ final class OptionsWindow: NSObject, NSWindowDelegate {
         let widthRow = row(L.t("Ширина кнопки с подписью:", "Labeled button width:"), slider, widthLabel)
         self.widthRow = widthRow
         stack.addArrangedSubview(widthRow)
+        stack.addArrangedSubview(checkbox(L.t("Только окна текущего рабочего стола", "Only windows on the current desktop"),
+                                          Settings.currentDesktopOnly) { Settings.currentDesktopOnly = $0 })
         stack.addArrangedSubview(row(L.t("Щелчок по активной программе:", "Clicking the active app:"),
                                      popup(ActiveClick.allCases, Settings.activeClick, \.title) { Settings.activeClick = $0 }))
 
@@ -178,9 +180,22 @@ final class OptionsWindow: NSObject, NSWindowDelegate {
                 "WTaskbar is already switched on in the Accessibility list but access isn't granted? The permission belongs to a previous build. Click “Ask again”: the old entry is removed and macOS asks again.")))
         }
 
+        stack.addArrangedSubview(note(Self.versionText))
+
         window.contentView = stack
         window.setContentSize(stack.fittingSize)
         updateEnabled()
+    }
+
+    /// «WTaskbar 0.17 · сборка 2026-11-16 16:45»: у пересборок одной версии номер один и тот же,
+    /// различает их время сборки (`WTaskbarBuildDate` пишет `scripts/bundle.sh`).
+    private static var versionText: String {
+        let info = Bundle.main.infoDictionary ?? [:]
+        var text = "WTaskbar " + (info["CFBundleShortVersionString"] as? String ?? "?")
+        if let date = info["WTaskbarBuildDate"] as? String {
+            text += L.t(" · сборка ", " · build ") + date
+        }
+        return text
     }
 
     private func updateEnabled() {

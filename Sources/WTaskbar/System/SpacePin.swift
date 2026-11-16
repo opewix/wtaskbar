@@ -65,6 +65,37 @@ enum SpacePin {
         return (current?["type"] as? Int) == 4
     }
 
+    /// Столы каждого дисплея: открытый сейчас и все его рабочие столы; плюс все полноэкранные.
+    /// nil — API нет.
+    static func layout() -> (displays: [(current: UInt64?, spaces: Set<UInt64>)], fullScreen: Set<UInt64>)? {
+        guard let api, let list = api.copyDisplaySpaces(api.connection)?.takeRetainedValue() as? [[String: Any]] else {
+            return nil
+        }
+        var displays: [(current: UInt64?, spaces: Set<UInt64>)] = []
+        var fullScreen = Set<UInt64>()
+        for display in list {
+            var spaces = Set<UInt64>()
+            for space in display["Spaces"] as? [[String: Any]] ?? [] {
+                guard let id = spaceID(space) else { continue }
+                // Тип 4 — полноэкранный стол, 0 — обычный.
+                if (space["type"] as? Int) == 4 { fullScreen.insert(id) } else { spaces.insert(id) }
+            }
+            displays.append(((display["Current Space"] as? [String: Any]).flatMap(spaceID), spaces))
+        }
+        return (displays, fullScreen)
+    }
+
+    /// На каких столах окно (номер окна WindowServer).
+    static func desktops(ofWindow number: CGWindowID) -> [UInt64] {
+        guard let api else { return [] }
+        let windows = [NSNumber(value: number)] as CFArray
+        return (api.copySpaces(api.connection, 7, windows)?.takeRetainedValue() as? [NSNumber] ?? []).map(\.uint64Value)
+    }
+
+    private static func spaceID(_ space: [String: Any]) -> UInt64? {
+        (space["id64"] as? NSNumber)?.uint64Value ?? (space["ManagedSpaceID"] as? NSNumber)?.uint64Value
+    }
+
     /// Переносит окно в общее для панелей пространство. Вызывать, когда окно уже на экране.
     static func pin(_ window: NSWindow) {
         guard Settings.pinToAllSpaces, let api, window.windowNumber > 0 else { return }
@@ -83,5 +114,31 @@ enum SpacePin {
         let desktops = (api.copySpaces(cid, 7, windows)?.takeRetainedValue() as? [NSNumber] ?? [])
             .filter { $0.uint64Value != space }
         if !desktops.isEmpty { _ = api.remove(cid, windows, desktops as CFArray) }
+    }
+}
+
+/// Какие столы панель считает текущими. macOS меняет текущий стол только в конце анимации
+/// перехода (около секунды). Узнать стол назначения раньше пока не удалось — см. PLAN.md.
+enum Desktops {
+    private(set) static var current = Set<UInt64>()
+    private(set) static var fullScreen = Set<UInt64>()
+    /// Текущие столы по macOS. Пока без упреждения то же, что `current`.
+    static var actual: Set<UInt64> { current }
+
+    /// Окно на текущем столе. Стол не узнать или API нет — считаем, что здесь. Полноэкранные окна
+    /// живут на своём столе — их, как развёрнутые, показываем везде.
+    static func contains(_ spaces: [UInt64]) -> Bool {
+        spaces.isEmpty || current.isEmpty || spaces.contains { current.contains($0) || fullScreen.contains($0) }
+    }
+
+    /// true — набор текущих столов изменился.
+    @discardableResult
+    static func update() -> Bool {
+        guard let layout = SpacePin.layout() else { return false }
+        let fresh = Set(layout.displays.compactMap(\.current))
+        guard fresh != current || layout.fullScreen != fullScreen else { return false }
+        current = fresh
+        fullScreen = layout.fullScreen
+        return true
     }
 }
