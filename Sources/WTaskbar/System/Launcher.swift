@@ -73,13 +73,20 @@ enum Launcher {
             return
         }
         defer { model.refreshSoon() }
+        // Кнопка помнит окно по последнему опросу (до секунды назад): в фокусе ли оно и свёрнуто ли,
+        // спрашиваем заново — иначе повторный щелчок по только что выбранному окну его не свернёт.
+        var item = item
+        if let window = item.window, let fresh = WindowList.windows(of: app)?.first(where: { $0.id == window.id }) {
+            item.window = fresh
+        }
         if model.isActive(item), let front = model.frontApp(of: item) {
             switch Settings.activeClick {
             case .hide:
                 front.hide()
             case .minimize:
                 // Без доступа к окнам свернуть нечего — скрываем программу.
-                let focused = model.windowsHere(of: front).first { $0.focused }
+                let focused = (WindowList.windows(of: front) ?? model.windowsHere(of: front))
+                    .first { $0.focused && !$0.minimized && $0.onCurrentDesktop }
                 if let window = item.window ?? focused {
                     WindowList.minimize(window)
                 } else {

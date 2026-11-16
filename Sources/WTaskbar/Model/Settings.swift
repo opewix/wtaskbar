@@ -82,7 +82,8 @@ enum Settings {
     }
 
     static var activeClick: ActiveClick {
-        get { choice("activeClick", default: .hide) }
+        // Как в Windows: повторный щелчок сворачивает окно, остальные окна программы остаются.
+        get { choice("activeClick", default: .minimize) }
         set { store(newValue.rawValue, "activeClick") }
     }
 

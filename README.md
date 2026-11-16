@@ -10,8 +10,8 @@ layout indicator, clock with a calendar flyout and the “show desktop” strip.
 
 ## Features
 
-- **Taskbar buttons:** pinned and running apps; click to launch, bring to front, or hide the active
-  app (like minimizing in Windows). Underline for running apps, highlight for the active one,
+- **Taskbar buttons:** pinned and running apps; click to launch, bring to front, or minimize the active
+  window, as in Windows. Underline for running apps, highlight for the active one,
   “stacked” look when an app has several windows.
 - **Drag to reorder:** hold a button and move it left or right, like in Windows; works for pinned
   apps that aren't running and for window buttons. The order of pinned apps is remembered.
@@ -49,7 +49,7 @@ Right-click the taskbar → **Taskbar settings…**, modeled after the Windows 1
 - automatically hide the taskbar, small taskbar buttons;
 - combine taskbar buttons: *always, hide labels* / *when taskbar is full* / *never* — without
   combining, every window gets its own labeled button; labeled button width;
-- what clicking the active app does: hide the app / minimize the window / nothing;
+- what clicking the active app does: minimize the window (default) / hide the app / nothing;
 - search: hidden / icon / box; Task View button, keyboard layout indicator, date, seconds,
   “show desktop” strip;
 - multiple displays: taskbar on all displays, buttons on all taskbars / main taskbar and the one
