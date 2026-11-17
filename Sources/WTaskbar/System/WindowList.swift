@@ -20,8 +20,10 @@ enum WindowList {
         /// Столы окна; пусто — не узнать.
         var desktops: [UInt64]
 
-        /// На текущем рабочем столе. Свёрнутые, полноэкранные и окна, чей стол не узнать, — везде.
-        var onCurrentDesktop: Bool { minimized || Desktops.contains(desktops) }
+        /// На текущем рабочем столе. Свёрнутое окно остаётся на своём столе, как в Windows: WindowServer
+        /// и для него отдаёт стол, а Accessibility — само окно с любого стола. Полноэкранные и окна,
+        /// чей стол не узнать, — везде.
+        var onCurrentDesktop: Bool { Desktops.contains(desktops) }
 
         /// Видна ли кнопка окна: в Windows 10 по умолчанию — только окна текущего рабочего стола.
         var isShown: Bool { onCurrentDesktop || !Settings.currentDesktopOnly }
