@@ -112,6 +112,20 @@ enum WindowList {
         return (desktops, apps)
     }
 
+    /// Окна стола сверху вниз: WindowServer отдаёт общий список в порядке наложения, и окна других
+    /// столов стоят в нём на своих местах. Свёрнутые тоже здесь — их отсеивает вызывающий.
+    static func stack(on space: UInt64) -> [(number: CGWindowID, pid: pid_t)] {
+        var stack: [(number: CGWindowID, pid: pid_t)] = []
+        for info in CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? [] {
+            guard isDocumentSized(info),
+                  let pid = info[kCGWindowOwnerPID as String] as? pid_t,
+                  let number = info[kCGWindowNumber as String] as? CGWindowID,
+                  SpacePin.desktops(ofWindow: number).contains(space) else { continue }
+            stack.append((number, pid))
+        }
+        return stack
+    }
+
     private typealias GetWindow = @convention(c) (AXUIElement, UnsafeMutablePointer<CGWindowID>) -> AXError
     /// Закрытая функция Accessibility: номер окна WindowServer по элементу окна.
     private static let getWindow: GetWindow? = {

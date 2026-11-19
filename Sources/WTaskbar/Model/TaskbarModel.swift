@@ -44,6 +44,9 @@ final class TaskbarModel {
     private(set) var pinned: [URL] = []
     private(set) var tiles: [URL] = []
     private(set) var frontmostPID: pid_t?
+    /// Упреждение при смене стола: окно, которое macOS выведет вперёд на столе назначения. Активную
+    /// программу она меняет только в конце анимации — до того активной была бы кнопка прежней.
+    private var predictedFront: (number: CGWindowID, pid: pid_t)?
     /// Окна запущенных программ; пусто без разрешения «Универсальный доступ».
     private(set) var windows: [pid_t: [WindowList.Window]] = [:]
     private var windowsSignature = ""
@@ -165,6 +168,10 @@ final class TaskbarModel {
 
     /// Кнопка программы активна, когда программа впереди; кнопка окна — когда ещё и окно в фокусе.
     func isActive(_ item: TaskItem) -> Bool {
+        if let predictedFront {
+            guard item.apps.contains(where: { $0.processIdentifier == predictedFront.pid }) else { return false }
+            return item.window.map { $0.number == predictedFront.number } ?? true
+        }
         guard frontApp(of: item) != nil else { return false }
         guard let window = item.window else { return true }
         return window.focused && !window.minimized
@@ -189,11 +196,29 @@ final class TaskbarModel {
     }
 
     private func showPredictedDesktop() {
+        predictedFront = Desktops.predictedTarget.flatMap(frontWindow(on:))
         refreshWindows()
         let wait: TimeInterval = 2
         DispatchQueue.main.asyncAfter(deadline: .now() + wait + 0.05) { [weak self] in
+            guard let self else { return }
             Desktops.update()
-            if Desktops.expirePrediction(after: wait) { self?.refreshWindows() }
+            let expired = Desktops.expirePrediction(after: wait)
+            // Та же программа впереди и на новом столе — macOS об активации не сообщит, снимаем сами.
+            if Desktops.predictedTarget == nil, self.predictedFront != nil {
+                self.predictedFront = nil
+                self.post()
+            }
+            if expired { self.refreshWindows() }
+        }
+    }
+
+    /// Верхнее окно стола среди окон программ с панели: его macOS и выведет вперёд, придя на стол.
+    /// Свёрнутые окна и окна скрытых программ не в счёт. nil — окон там нет или их не узнать.
+    private func frontWindow(on space: UInt64) -> (number: CGWindowID, pid: pid_t)? {
+        let apps = Dictionary(runningTaskApps().map { ($0.processIdentifier, $0) }, uniquingKeysWith: { first, _ in first })
+        return WindowList.stack(on: space).first { entry in
+            guard let app = apps[entry.pid], !app.isHidden else { return false }
+            return !(windows[entry.pid] ?? []).contains { $0.number == entry.number && $0.minimized }
         }
     }
 
@@ -232,7 +257,10 @@ final class TaskbarModel {
             }
         case NSWorkspace.didActivateApplicationNotification:
             // Своё окно («Пуск», параметры) активной программой не считаем.
-            if let pid = app?.processIdentifier, pid != ownPID { frontmostPID = pid }
+            if let pid = app?.processIdentifier, pid != ownPID {
+                frontmostPID = pid
+                predictedFront = nil
+            }
             refreshSoon()
         default:
             break
@@ -285,6 +313,10 @@ final class TaskbarModel {
         guard WindowList.isTrusted else { return }
         DesktopSwipe.startIfNeeded()
         Desktops.update()
+        // Пришли на стол, и впереди та же программа, что была: об активации macOS не сообщит.
+        if let predictedFront, Desktops.predictedTarget == nil, predictedFront.pid == frontmostPID {
+            self.predictedFront = nil
+        }
         let server = WindowList.serverWindows()
         var fresh: [pid_t: [WindowList.Window]] = [:]
         var signature = ""
@@ -315,6 +347,7 @@ final class TaskbarModel {
         // Сменился только текущий стол — список окон с запомненными окнами других столов тот же,
         // а кнопки уже другие.
         signature += "current:\(Desktops.current.sorted()) fullScreen:\(Desktops.fullScreen.sorted())\n"
+        signature += "front:\(predictedFront.map { "\($0.number)" } ?? "-")\n"
         signature += "desktops:" + appDesktops.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value.sorted())" }.joined(separator: ",")
         if signature != windowsSignature {
             windowsSignature = signature

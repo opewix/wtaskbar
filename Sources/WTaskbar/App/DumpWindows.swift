@@ -21,6 +21,9 @@ enum DumpWindows {
                 out += "\(app.localizedName ?? "?") | \(window.title.prefix(50)) | number=\(window.number.map(String.init) ?? "nil") spaces=\(window.desktops) minimized=\(window.minimized) here=\(window.onCurrentDesktop)\n"
             }
         }
+        for space in SpacePin.layout()?.displays.flatMap(\.spaces) ?? [] {
+            out += "stack \(space): \(WindowList.stack(on: space).map { "\($0.number)" }.joined(separator: " "))\n"
+        }
         out += "server=\(WindowList.serverWindows().apps.sorted { $0.key < $1.key })\n"
         try? out.write(toFile: path, atomically: true, encoding: .utf8)
         exit(0)

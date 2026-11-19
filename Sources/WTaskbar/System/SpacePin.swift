@@ -140,6 +140,9 @@ enum Desktops {
     /// Упреждение: на дисплее со столами `display` текущим считаем `target`.
     private static var predicted: (display: Set<UInt64>, target: UInt64, at: Date)?
 
+    /// Стол, куда едем, пока macOS не подтвердила переход.
+    static var predictedTarget: UInt64? { predicted?.target }
+
     static var current: Set<UInt64> {
         guard let predicted else { return actual }
         return actual.subtracting(predicted.display).union([predicted.target])
