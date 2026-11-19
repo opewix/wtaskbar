@@ -4,6 +4,12 @@ A Windows-style taskbar for macOS that replaces the Dock, in Windows 10, Windows
 Windows XP themes: Start menu, taskbar buttons you can drag around, window grouping, keyboard
 layout indicator, clock with a calendar flyout and the “show desktop” strip.
 
+> **Windows-style utilities for macOS** — one set, each works on its own:  
+> [WExplorer](https://github.com/opewix/wexplorer) — file manager  
+> **WTaskbar** — taskbar and Start menu instead of the Dock  
+> [WPhoto](https://github.com/opewix/wphoto) — picture viewer  
+> [WTortoise](https://github.com/opewix/wtortoise) — Git in the right-click menu, like TortoiseGit
+
 ![Taskbar](reference/taskbar.png)
 
 <img src="reference/start.png" width="420" alt="Start menu"> <img src="reference/calendar.png" width="240" alt="Calendar">
