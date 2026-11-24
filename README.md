@@ -21,6 +21,9 @@ layout indicator, clock with a calendar flyout and the “show desktop” strip.
   “stacked” look when an app has several windows.
 - **Drag to reorder:** hold a button and move it left or right, like in Windows; works for pinned
   apps that aren't running and for window buttons. The order of pinned apps is remembered.
+- **Drag over a button:** hold a file (or a link, or text) you are dragging over a button for half a
+  second and its window comes to the front, so you can drop into it, like in Windows. Over a grouped
+  button the app's windows take turns.
 - **Jump list (right-click):** the app's windows, pin / unpin, show in Finder, hide, quit, close the window (or all of the group's windows).
 - **Virtual desktops:** only the current desktop's windows get buttons, as in Windows 10 (can be turned off). The buttons switch as soon as you swipe or press Control-Left / Control-Right, without waiting for the macOS animation.
 - **Shift-click** or **middle-click** a button to open another window of that app; several running copies of one app share a single button. A grouped button with several windows shows a list to pick from.

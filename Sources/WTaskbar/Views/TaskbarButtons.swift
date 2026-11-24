@@ -88,9 +88,71 @@ final class TaskButton: HoverButton {
             }
         }
         menuProvider = { [weak self] in self?.item.map(TaskMenu.make) }
+        registerForDraggedTypes(Self.draggedTypes)
     }
 
     required init?(coder: NSCoder) { fatalError() }
+
+    // MARK: Перетаскивание над кнопкой
+
+    /// Всё, что обычно тащат из Finder, Проводника и других программ: файлы, ссылки, текст, картинки.
+    private static let draggedTypes: [NSPasteboard.PasteboardType] =
+        [.fileURL, .URL, .string, .html, .rtf, .tiff, .png, .pdf,
+         NSPasteboard.PasteboardType("NSFilenamesPboardType")]
+        + NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) }
+    /// Сколько держать перетаскиваемое над кнопкой, чтобы окно вышло вперёд.
+    private static let springDelay: TimeInterval = 0.5
+    /// Через сколько над сгруппированной кнопкой показывается следующее её окно.
+    private static let springCycle: TimeInterval = 1.5
+
+    private var springTimer: Timer?
+    private var springQueue: [WindowList.Window] = []
+    private var springStep = 0
+    private var dropHovered = false { didSet { if dropHovered != oldValue { needsDisplay = true } } }
+
+    /// Как в Windows: бросить на кнопку нельзя, но задержался над ней — окно выходит вперёд,
+    /// и перетаскиваемое бросают уже в него.
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        dropHovered = true
+        springStep = 0
+        scheduleSpring(after: Self.springDelay)
+        return []
+    }
+
+    override func draggingExited(_ sender: NSDraggingInfo?) { cancelSpring() }
+    override func draggingEnded(_ sender: NSDraggingInfo) { cancelSpring() }
+
+    private func scheduleSpring(after delay: TimeInterval) {
+        springTimer?.invalidate()
+        let timer = Timer(timeInterval: delay, repeats: false) { [weak self] _ in self?.spring() }
+        RunLoop.main.add(timer, forMode: .common)
+        springTimer = timer
+    }
+
+    private func cancelSpring() {
+        springTimer?.invalidate()
+        springTimer = nil
+        springQueue = []
+        dropHovered = false
+    }
+
+    private func spring() {
+        // Конец перетаскивания сюда может и не дойти — сверяемся с мышью сами.
+        guard let item, let window, NSEvent.pressedMouseButtons & 1 != 0,
+              bounds.contains(convert(window.mouseLocationOutsideOfEventStream, from: nil)) else {
+            cancelSpring()
+            return
+        }
+        if springStep == 0 { springQueue = Launcher.windowsToBring(item) }
+        if springQueue.isEmpty {
+            // Окна не опрошены или доступа к ним нет — выводим программу целиком, один раз.
+            item.app?.activate(options: [.activateIgnoringOtherApps])
+            return
+        }
+        Launcher.focus(springQueue[springStep % springQueue.count])
+        springStep += 1
+        if springQueue.count > 1 { scheduleSpring(after: Self.springCycle) }
+    }
 
     /// Щелчок колёсиком — тоже ещё одно окно программы, как в Windows.
     override func otherMouseUp(with event: NSEvent) {
@@ -111,7 +173,7 @@ final class TaskButton: HoverButton {
     override func draw(_ dirtyRect: NSRect) {
         guard let item else { return }
         Theme.skin.drawTaskButton(bounds, ButtonLook(
-            hovered: hovered, pressed: pressed, active: active, running: item.app != nil,
+            hovered: hovered || dropHovered, pressed: pressed, active: active, running: item.app != nil,
             labeled: labeled, windows: windows, icon: item.icon, title: item.name))
     }
 }

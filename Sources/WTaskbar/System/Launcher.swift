@@ -34,6 +34,22 @@ enum Launcher {
         TaskbarModel.shared.refreshSoon()
     }
 
+    /// Окна кнопки в том порядке, в каком их выводить вперёд, когда над ней держат перетаскиваемое:
+    /// у кнопки окна — оно одно; у программы — сначала то, что вывел бы щелчок, потом остальные.
+    /// Пусто — программа не запущена или её окна не опрошены.
+    static func windowsToBring(_ item: TaskItem) -> [WindowList.Window] {
+        guard WindowList.isTrusted, let app = item.app else { return [] }
+        if let window = item.window {
+            return [WindowList.windows(of: app)?.first { $0.id == window.id } ?? window]
+        }
+        var windows = TaskbarModel.shared.windows(of: item)
+        if let first = windows.firstIndex(where: { $0.focused && !$0.minimized })
+            ?? windows.firstIndex(where: { !$0.minimized }) {
+            windows.insert(windows.remove(at: first), at: 0)
+        }
+        return windows
+    }
+
     private static func launch(_ url: URL) {
         let config = NSWorkspace.OpenConfiguration()
         config.activates = true
