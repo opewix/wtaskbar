@@ -2,7 +2,7 @@
 # Собирает установочный образ build/wtaskbar-<версия>.dmg: приложение + ярлык «Программы».
 set -euo pipefail
 cd "$(dirname "$0")/.."
-export VERSION="${VERSION:-0.21}"
+export VERSION="${VERSION:-0.22}"
 ./scripts/bundle.sh
 
 STAGE=build/dmg
